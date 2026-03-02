@@ -121,6 +121,9 @@ def generate_embeddings(texts: list[str], batch_size: int = 100) -> list[list[fl
     import openai
     from app.config import settings
     client = openai.OpenAI(api_key=settings.openai_api_key)
+    # Truncate texts that exceed the model's 8191 token limit (~25k chars for code)
+    max_chars = 15000
+    texts = [t[:max_chars] if len(t) > max_chars else t for t in texts]
     all_embeddings = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
