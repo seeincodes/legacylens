@@ -1,0 +1,46 @@
+---
+description: Log errors and fixes to ERROR_FIX_LOG.md when resolving issues
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# Error Resolution Logging
+
+## Rule
+
+When you encounter and fix an error during development, **append an entry to `ERROR_FIX_LOG.md`** using the template format:
+
+```markdown
+### [DATE] - Brief Description
+**Error:** What went wrong
+**Context:** What you were doing when it happened
+**Root Cause:** Why it happened
+**Fix:** How you resolved it
+**Prevention:** How to avoid it in the future
+```
+
+## When to Log
+
+- Build or compilation failures
+- Runtime errors during ingestion, embedding, or retrieval
+- API errors (rate limits, auth failures, timeouts)
+- Database errors (schema mismatch, connection issues, query failures)
+- Deployment errors (CORS, cold starts, missing env vars)
+- Any error that took more than 5 minutes to diagnose
+
+## When NOT to Log
+
+- Typos caught immediately
+- Linter warnings resolved inline
+- Expected test failures during TDD
+
+## Categories to Tag
+
+Use these prefixes in the brief description:
+- `[INGEST]` -- File discovery, preprocessing, chunking issues
+- `[EMBED]` -- Embedding API errors, dimension mismatches
+- `[DB]` -- pgvector/Supabase schema, connection, query issues
+- `[RETRIEVE]` -- Search quality, ranking, context assembly issues
+- `[LLM]` -- Claude API errors, prompt issues, hallucination
+- `[DEPLOY]` -- Vercel, Railway, Supabase deployment issues
+- `[UI]` -- Frontend rendering, API connection issues

@@ -1,0 +1,40 @@
+---
+description: Protect environment files from accidental modification or exposure
+globs: [".env", ".env.*", ".env.local", ".env.production"]
+alwaysApply: true
+---
+
+# Environment Files - Read Only
+
+## Rules
+
+1. **NEVER modify `.env`, `.env.local`, or `.env.production` files** without explicit user confirmation.
+2. **NEVER commit environment files to git.** Verify `.gitignore` includes all `.env*` patterns.
+3. **NEVER display or log API key values.** When referencing env vars, use placeholder format: `OPENAI_API_KEY=sk-...`
+4. **NEVER hardcode secrets** in source code. Always reference via `process.env` or `os.environ`.
+
+## Required Environment Variables
+
+```
+# Embeddings (OpenAI text-embedding-3-small)
+OPENAI_API_KEY=
+
+# LLM Answer Generation (Claude Haiku 4.5 / Sonnet 4.6)
+ANTHROPIC_API_KEY=
+
+# Database (Supabase pgvector)
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_KEY=
+DATABASE_URL=
+
+# Optional upgrade path
+VOYAGE_API_KEY=
+```
+
+## When Creating New Env Vars
+
+- Add to `.env.example` (with empty values) so other developers know what's needed
+- Add to the deployment platform's secrets manager (Vercel, Railway, Supabase)
+- Document in `TECH_STACK.md` under Environment Variables
+- Never use default/fallback values for secrets in code

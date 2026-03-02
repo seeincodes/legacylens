@@ -1,0 +1,58 @@
+---
+description: Enforce the locked technology stack decisions from Pre-Search
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Technology Stack Lock
+
+The following stack decisions were made during Pre-Search and must not be changed without explicit user approval. Refer to `PRE-SEARCH.md` for full rationale.
+
+## Locked Decisions
+
+### Target Codebase: LAPACK (Fortran)
+- Double-precision routines from `SRC/` (~500 files) + `BLAS/SRC/` (~170 files)
+- ~670 Fortran files, ~100K+ LOC
+- Do NOT add other codebases or languages without approval
+
+### Vector Database: pgvector via Supabase
+- Do NOT switch to Pinecone, Qdrant, ChromaDB, Weaviate, or Milvus
+- Do NOT use FAISS or in-memory vector stores for production
+- Schema defined in `TECH_STACK.md` -- column type is `VECTOR(1536)`
+- If switching to Voyage code-3 embeddings (1024 dims), the column must be recreated
+
+### Embedding Model: OpenAI text-embedding-3-small
+- 1536 dimensions, 8K token context
+- Do NOT switch models without updating the DB vector column dimensions
+- Upgrade path: Voyage code-3 (1024 dims, 32K context) -- requires schema migration
+
+### LLM: Claude (Anthropic)
+- Primary: Claude Haiku 4.5 (`claude-haiku-4-5-20251001`)
+- Complex queries: Claude Sonnet 4.6 (`claude-sonnet-4-6`)
+- Do NOT switch to OpenAI GPT models or open-source models without approval
+- Use streaming responses for the web interface
+
+### RAG Framework: LlamaIndex
+- Do NOT switch to LangChain, Haystack, or custom implementation
+- Use `CodeSplitter` with tree-sitter for Fortran chunking
+- Use the pgvector vector store integration
+
+### Backend: Python / FastAPI
+- Do NOT switch to Node.js/Express or other backend frameworks
+- LlamaIndex requires Python
+
+### Frontend: Next.js
+- Deploy to Vercel (free tier)
+- Do NOT switch to plain React, Vue, or other frameworks
+
+### Deployment: Vercel + Railway + Supabase
+- All free tiers
+- Do NOT add paid services without approval
+
+## Adding New Dependencies
+
+Before adding any new package or service:
+1. Check if the functionality already exists in the locked stack
+2. Verify it's compatible with the existing dependencies
+3. Prefer packages already in the LlamaIndex / FastAPI ecosystem
+4. Document the addition in `TECH_STACK.md`
