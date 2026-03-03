@@ -77,3 +77,36 @@ class SimilarResponse(BaseModel):
 class DocumentResponse(BaseModel):
     subroutine_name: str
     documentation: str
+
+
+# --- Analysis request models ---
+
+class EntryPointsRequest(BaseModel):
+    top_k: int = 10
+
+
+class DataUsageRequest(BaseModel):
+    variable_name: str
+    top_k: int = 10
+
+
+class IoOperationsRequest(BaseModel):
+    top_k: int = 10
+
+
+class ErrorPatternsRequest(BaseModel):
+    top_k: int = 10
+
+
+# --- Analysis response models ---
+
+class AnalysisChunk(BaseModel):
+    file_path: str
+    subroutine_name: str | None
+    content_preview: str
+
+
+class AnalysisResponse(BaseModel):
+    analysis_type: str
+    analysis: str
+    chunks: list[AnalysisChunk]

@@ -46,14 +46,31 @@ interface DocumentData {
   documentation: string;
 }
 
-export type UnderstandFeature = "explain" | "eli5" | "dependencies" | "similar" | "document";
+interface AnalysisChunk {
+  file_path: string;
+  subroutine_name: string | null;
+  content_preview: string;
+}
+
+interface AnalysisData {
+  analysis_type: string;
+  analysis: string;
+  chunks: AnalysisChunk[];
+}
+
+export type UnderstandFeature = "explain" | "eli5" | "dependencies" | "similar" | "document"
+  | "entry_points" | "data_usage" | "io_operations" | "error_patterns";
 
 export type UnderstandResult =
   | { feature: "explain"; data: ExplainData }
   | { feature: "eli5"; data: ExplainData }
   | { feature: "dependencies"; data: DependencyData }
   | { feature: "similar"; data: SimilarData }
-  | { feature: "document"; data: DocumentData };
+  | { feature: "document"; data: DocumentData }
+  | { feature: "entry_points"; data: AnalysisData }
+  | { feature: "data_usage"; data: AnalysisData }
+  | { feature: "io_operations"; data: AnalysisData }
+  | { feature: "error_patterns"; data: AnalysisData };
 
 interface UnderstandPanelProps {
   result: UnderstandResult;
@@ -344,6 +361,37 @@ function DocumentView({ data }: { data: DocumentData }) {
   );
 }
 
+function AnalysisView({ data }: { data: AnalysisData }) {
+  return (
+    <div className="space-y-4">
+      <div className="answer-markdown text-sm leading-relaxed"
+        style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink)" }}>
+        {renderMarkdown(data.analysis)}
+      </div>
+      {data.chunks.length > 0 && (
+        <div>
+          <span className="text-xs font-bold"
+            style={{ fontFamily: "var(--font-architects-daughter)", color: "var(--ink-light)" }}>
+            Referenced routines:
+          </span>
+          <div className="space-y-1 mt-1">
+            {data.chunks.map((chunk, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs">
+                <span style={{ fontFamily: "var(--font-architects-daughter)", color: "var(--ink)" }}>
+                  {chunk.subroutine_name || "Unknown"}
+                </span>
+                <span style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink-faint)" }}>
+                  {chunk.file_path}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Loading state ──
 
 const LOADING_LABELS: Record<UnderstandFeature, string> = {
@@ -352,6 +400,10 @@ const LOADING_LABELS: Record<UnderstandFeature, string> = {
   dependencies: "Tracing call chain…",
   similar: "Finding similar routines…",
   document: "Generating documentation…",
+  entry_points: "Finding entry points…",
+  data_usage: "Tracking data usage…",
+  io_operations: "Scanning I/O operations…",
+  error_patterns: "Analyzing error patterns…",
 };
 
 // ── Main component ──
@@ -391,6 +443,10 @@ export default function UnderstandPanel({ result, isLoading, feature }: Understa
           {result.feature === "dependencies" && <DependencyView data={result.data} />}
           {result.feature === "similar" && <SimilarView data={result.data} />}
           {result.feature === "document" && <DocumentView data={result.data} />}
+          {result.feature === "entry_points" && <AnalysisView data={result.data} />}
+          {result.feature === "data_usage" && <AnalysisView data={result.data} />}
+          {result.feature === "io_operations" && <AnalysisView data={result.data} />}
+          {result.feature === "error_patterns" && <AnalysisView data={result.data} />}
         </>
       ) : null}
     </div>

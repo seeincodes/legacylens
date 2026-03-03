@@ -7,6 +7,10 @@ from app.services.understanding import (
     lookup_routine,
     explain_routine,
     explain_routine_eli5,
+    find_entry_points,
+    find_data_usage,
+    find_io_operations,
+    find_error_patterns,
 )
 
 
@@ -154,3 +158,103 @@ def test_explain_routine_eli5_calls_claude(mock_lookup, mock_anthropic):
     assert result["subroutine_name"] == "DGESV"
     assert "toy blocks" in result["explanation"]
     mock_client.messages.create.assert_called_once()
+
+
+# --- find_entry_points tests ---
+
+@patch("app.services.understanding.anthropic")
+@patch("app.services.understanding._get_conn")
+def test_find_entry_points(mock_conn, mock_anthropic):
+    cur = MagicMock()
+    cur.fetchall.return_value = [
+        ("SRC/dgesv.f", 1, 100, "DGESV", "driver", "SUBROUTINE DGESV..."),
+        ("SRC/dgels.f", 1, 80, "DGELS", "driver", "SUBROUTINE DGELS..."),
+    ]
+    mock_conn.return_value.cursor.return_value = cur
+
+    mock_client = MagicMock()
+    mock_anthropic.Anthropic.return_value = mock_client
+    mock_client.messages.create.return_value.content = [
+        MagicMock(text="DGESV solves linear systems. DGELS solves least squares.")
+    ]
+
+    result = find_entry_points(top_k=5)
+    assert result is not None
+    assert result["analysis_type"] == "entry_points"
+    assert "DGESV solves" in result["analysis"]
+    assert len(result["chunks"]) == 2
+    assert result["chunks"][0]["subroutine_name"] == "DGESV"
+
+
+# --- find_data_usage tests ---
+
+@patch("app.services.understanding.anthropic")
+@patch("app.services.understanding._get_conn")
+def test_find_data_usage(mock_conn, mock_anthropic):
+    cur = MagicMock()
+    cur.fetchall.return_value = [
+        ("SRC/dgesv.f", 1, 100, "DGESV", "driver", "SUBROUTINE DGESV(N, NRHS, A, LDA, ...)"),
+        ("SRC/dgetrf.f", 1, 80, "DGETRF", "computational", "SUBROUTINE DGETRF(M, N, A, LDA, ...)"),
+    ]
+    mock_conn.return_value.cursor.return_value = cur
+
+    mock_client = MagicMock()
+    mock_anthropic.Anthropic.return_value = mock_client
+    mock_client.messages.create.return_value.content = [
+        MagicMock(text="LDA is used as the leading dimension of array A in both routines.")
+    ]
+
+    result = find_data_usage("LDA", top_k=5)
+    assert result is not None
+    assert result["analysis_type"] == "data_usage"
+    assert "LDA" in result["analysis"]
+    assert len(result["chunks"]) == 2
+
+
+# --- find_io_operations tests ---
+
+@patch("app.services.understanding.anthropic")
+@patch("app.services.understanding._get_conn")
+def test_find_io_operations(mock_conn, mock_anthropic):
+    cur = MagicMock()
+    cur.fetchall.return_value = [
+        ("SRC/xerbla.f", 1, 50, "XERBLA", "computational", "SUBROUTINE XERBLA\n      WRITE(*,*) 'Error'"),
+    ]
+    mock_conn.return_value.cursor.return_value = cur
+
+    mock_client = MagicMock()
+    mock_anthropic.Anthropic.return_value = mock_client
+    mock_client.messages.create.return_value.content = [
+        MagicMock(text="XERBLA uses WRITE to output error messages to stdout.")
+    ]
+
+    result = find_io_operations(top_k=5)
+    assert result is not None
+    assert result["analysis_type"] == "io_operations"
+    assert "WRITE" in result["analysis"]
+    assert len(result["chunks"]) == 1
+
+
+# --- find_error_patterns tests ---
+
+@patch("app.services.understanding.anthropic")
+@patch("app.services.understanding._get_conn")
+def test_find_error_patterns(mock_conn, mock_anthropic):
+    cur = MagicMock()
+    cur.fetchall.return_value = [
+        ("SRC/dgesv.f", 1, 100, "DGESV", "driver",
+         "SUBROUTINE DGESV\n      IF (INFO.NE.0) THEN\n        CALL XERBLA('DGESV', -INFO)\n      END IF"),
+    ]
+    mock_conn.return_value.cursor.return_value = cur
+
+    mock_client = MagicMock()
+    mock_anthropic.Anthropic.return_value = mock_client
+    mock_client.messages.create.return_value.content = [
+        MagicMock(text="DGESV uses XERBLA for parameter validation and INFO for error status.")
+    ]
+
+    result = find_error_patterns(top_k=5)
+    assert result is not None
+    assert result["analysis_type"] == "error_patterns"
+    assert "XERBLA" in result["analysis"]
+    assert len(result["chunks"]) == 1

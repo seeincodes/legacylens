@@ -6,6 +6,8 @@ from app.models.understand_schemas import (
     DependencyRequest, DependencyResponse,
     SimilarRequest, SimilarResponse,
     DocumentRequest, DocumentResponse,
+    EntryPointsRequest, DataUsageRequest, IoOperationsRequest, ErrorPatternsRequest,
+    AnalysisResponse,
 )
 from app.services.understanding import (
     explain_routine,
@@ -13,6 +15,10 @@ from app.services.understanding import (
     build_dependency_graph,
     find_similar_routines,
     generate_documentation,
+    find_entry_points,
+    find_data_usage,
+    find_io_operations,
+    find_error_patterns,
 )
 
 router = APIRouter(prefix="/understand", tags=["understand"])
@@ -61,3 +67,27 @@ async def document(request: DocumentRequest):
     if not result:
         raise HTTPException(status_code=404, detail=f"Routine '{request.subroutine_name}' not found")
     return result
+
+
+@router.post("/entry-points", response_model=AnalysisResponse)
+async def entry_points(request: EntryPointsRequest):
+    """Find and summarize driver routines (main entry points)."""
+    return find_entry_points(top_k=request.top_k)
+
+
+@router.post("/data-usage", response_model=AnalysisResponse)
+async def data_usage(request: DataUsageRequest):
+    """Find routines that reference a given variable or parameter."""
+    return find_data_usage(request.variable_name, top_k=request.top_k)
+
+
+@router.post("/io-operations", response_model=AnalysisResponse)
+async def io_operations(request: IoOperationsRequest):
+    """Find file I/O operations across the codebase."""
+    return find_io_operations(top_k=request.top_k)
+
+
+@router.post("/error-patterns", response_model=AnalysisResponse)
+async def error_patterns(request: ErrorPatternsRequest):
+    """Find and categorize error handling patterns."""
+    return find_error_patterns(top_k=request.top_k)

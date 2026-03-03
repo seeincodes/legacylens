@@ -48,6 +48,10 @@ const ENDPOINT_MAP: Record<UnderstandFeature, string> = {
   dependencies: "/api/understand/dependencies",
   similar: "/api/understand/similar",
   document: "/api/understand/document",
+  entry_points: "/api/understand/entry-points",
+  data_usage: "/api/understand/data-usage",
+  io_operations: "/api/understand/io-operations",
+  error_patterns: "/api/understand/error-patterns",
 };
 
 interface UnderstandState {

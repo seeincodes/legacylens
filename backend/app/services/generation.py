@@ -46,3 +46,26 @@ async def stream_answer(query: str, chunks: list[ChunkResult]):
     ) as stream:
         for text in stream.text_stream:
             yield text
+
+
+def classify_query(query: str) -> str:
+    """Classify a query into an analysis type or 'general'."""
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=20,
+        system=(
+            "Classify the user's query about a Fortran/LAPACK codebase into exactly one category. "
+            "Respond with ONLY the category name, nothing else.\n\n"
+            "Categories:\n"
+            "- entry_points: Questions about main entry points, driver routines, where to start\n"
+            "- data_usage: Questions about what functions use/modify a specific variable or data structure\n"
+            "- io_operations: Questions about file I/O, reading, writing, printing\n"
+            "- error_patterns: Questions about error handling, validation, error reporting\n"
+            "- general: Everything else (explanations, algorithms, specific routines, etc.)"
+        ),
+        messages=[{"role": "user", "content": query}],
+    )
+    category = message.content[0].text.strip().lower()
+    valid = {"entry_points", "data_usage", "io_operations", "error_patterns", "general"}
+    return category if category in valid else "general"
