@@ -100,10 +100,10 @@
 
 ### 12. Evaluation & Metrics
 
-- [ ] Build ground truth dataset (20-30 query-answer pairs)
-- [ ] Measure Precision@5, Recall@5, MRR
-- [ ] Document failure modes and edge cases
-- [ ] Log actual latency metrics (p50, p95)
+- [x] Build ground truth dataset (20-30 query-answer pairs)
+- [x] Measure Precision@5, Recall@5, MRR
+- [x] Document failure modes and edge cases
+- [x] Log actual latency metrics (p50, p95)
 
 ### 13. Performance & Reliability
 

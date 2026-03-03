@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
@@ -8,6 +10,8 @@ from fastapi.responses import StreamingResponse
 from app.models.schemas import QueryRequest, QueryResponse
 from app.services.retrieval import search
 from app.services.generation import generate_answer, stream_answer
+
+logger = logging.getLogger("legacylens.query")
 
 router = APIRouter()
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -69,6 +73,7 @@ def _read_file_response(file_path: str) -> dict:
 @router.post("/query")
 async def query_codebase(request: QueryRequest):
     """Main query endpoint -- retrieves code and streams LLM answer."""
+    t_start = time.perf_counter()
     chunks = search(
         query=request.query,
         top_k=request.top_k,
@@ -76,14 +81,27 @@ async def query_codebase(request: QueryRequest):
         precision_type=request.precision_type,
         expand=request.expand,
     )
+    retrieval_ms = (time.perf_counter() - t_start) * 1000
+    routines = [c.subroutine_name for c in chunks if c.subroutine_name]
+    logger.info(
+        "query=%r retrieval_ms=%.0f top_k=%d expand=%s results=%d routines=%s",
+        request.query, retrieval_ms, request.top_k, request.expand, len(chunks), routines,
+    )
 
     async def event_stream():
         yield f"data: {json.dumps({'type': 'chunks', 'chunks': [c.model_dump() for c in chunks]})}\n\n"
+        t_gen = time.perf_counter()
         full_answer = ""
         async for token in stream_answer(request.query, chunks):
             full_answer += token
             yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
+        generation_ms = (time.perf_counter() - t_gen) * 1000
+        total_ms = (time.perf_counter() - t_start) * 1000
         yield f"data: {json.dumps({'type': 'done', 'answer': full_answer})}\n\n"
+        logger.info(
+            "query=%r generation_ms=%.0f total_ms=%.0f",
+            request.query, generation_ms, total_ms,
+        )
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
