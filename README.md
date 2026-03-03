@@ -4,7 +4,7 @@ RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natura
 
 ## Live Demo
 
-- **Frontend:** [frontend-nine-alpha-70.vercel.app](https://frontend-nine-alpha-70.vercel.app)
+- **Frontend:** [frontend-nine-alpha-70.vercel.app](https://lapacklegacy-seeinplays-projects.vercel.app/)
 - **Backend API:** [legacylens-api.fly.dev](https://legacylens-api.fly.dev)
 
 ## Features
@@ -29,13 +29,13 @@ See [docs/RAG_ARCHITECTURE.md](docs/RAG_ARCHITECTURE.md) for full details.
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 16, React 19, Tailwind CSS 4 |
-| Backend | Python 3.11, FastAPI, Uvicorn |
-| Database | PostgreSQL + pgvector (Supabase) |
-| Embeddings | OpenAI text-embedding-3-small (1536d) |
-| LLM | Claude Haiku 4.5 |
+| Layer      | Technology                              |
+| ---------- | --------------------------------------- |
+| Frontend   | Next.js 16, React 19, Tailwind CSS 4    |
+| Backend    | Python 3.11, FastAPI, Uvicorn           |
+| Database   | PostgreSQL + pgvector (Supabase)        |
+| Embeddings | OpenAI text-embedding-3-small (1536d)   |
+| LLM        | Claude Haiku 4.5                        |
 | Deployment | Vercel (FE), Fly.io (BE), Supabase (DB) |
 
 ## Local Setup
@@ -82,26 +82,26 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | For embedding generation |
-| `ANTHROPIC_API_KEY` | Yes | For answer generation and code understanding |
-| `DATABASE_URL` | Yes | PostgreSQL connection string with pgvector |
-| `SUPABASE_URL` | No | Supabase project URL |
-| `SUPABASE_ANON_KEY` | No | Supabase anonymous key |
+| Variable            | Required | Description                                  |
+| ------------------- | -------- | -------------------------------------------- |
+| `OPENAI_API_KEY`    | Yes      | For embedding generation                     |
+| `ANTHROPIC_API_KEY` | Yes      | For answer generation and code understanding |
+| `DATABASE_URL`      | Yes      | PostgreSQL connection string with pgvector   |
+| `SUPABASE_URL`      | No       | Supabase project URL                         |
+| `SUPABASE_ANON_KEY` | No       | Supabase anonymous key                       |
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/query` | Streaming search + answer (SSE) |
-| `POST` | `/api/query/sync` | Non-streaming search + answer |
-| `GET` | `/api/file` | Get full file content |
-| `POST` | `/api/understand/explain` | Explain a subroutine |
-| `POST` | `/api/understand/dependencies` | Trace call chains |
-| `POST` | `/api/understand/similar` | Find similar routines |
-| `POST` | `/api/understand/document` | Generate documentation |
-| `GET` | `/api/health` | Health check |
+| Method | Path                           | Description                     |
+| ------ | ------------------------------ | ------------------------------- |
+| `POST` | `/api/query`                   | Streaming search + answer (SSE) |
+| `POST` | `/api/query/sync`              | Non-streaming search + answer   |
+| `GET`  | `/api/file`                    | Get full file content           |
+| `POST` | `/api/understand/explain`      | Explain a subroutine            |
+| `POST` | `/api/understand/dependencies` | Trace call chains               |
+| `POST` | `/api/understand/similar`      | Find similar routines           |
+| `POST` | `/api/understand/document`     | Generate documentation          |
+| `GET`  | `/api/health`                  | Health check                    |
 
 ## Documentation
 
