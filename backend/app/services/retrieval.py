@@ -13,6 +13,30 @@ except ImportError:
 
 logger = logging.getLogger("legacylens.retrieval")
 
+_openai_client = None
+_anthropic_client = None
+_anthropic_module_ref = None
+
+
+def _get_openai_client():
+    global _openai_client
+    if _openai_client is None:
+        import openai
+        _openai_client = openai.OpenAI(api_key=settings.openai_api_key)
+    return _openai_client
+
+
+def _get_anthropic_client():
+    global _anthropic_client, _anthropic_module_ref
+    if _anthropic_client is None or _anthropic_module_ref is not anthropic:
+        _anthropic_module_ref = anthropic
+        if anthropic is not None:
+            _anthropic_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        else:
+            _anthropic_client = None
+    return _anthropic_client
+
+
 # ── Embedding cache (LRU, max 256 entries) ──────────────
 
 _EMBEDDING_CACHE_MAX = 256
@@ -84,9 +108,7 @@ def embed_query(query: str) -> list[float]:
         logger.debug("embedding cache hit for query=%r", query[:50])
         return cached
 
-    import openai
-
-    client = openai.OpenAI(api_key=settings.openai_api_key)
+    client = _get_openai_client()
     response = client.embeddings.create(model="text-embedding-3-small", input=query)
     embedding = response.data[0].embedding
     _put_cached_embedding(query, embedding)
@@ -98,7 +120,9 @@ def expand_query(query: str) -> list[str]:
         return [query]
 
     try:
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        client = _get_anthropic_client()
+        if client is None:
+            return [query]
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=200,

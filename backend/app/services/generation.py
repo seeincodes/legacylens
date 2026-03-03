@@ -3,6 +3,16 @@ import anthropic
 from app.config import settings
 from app.models.schemas import ChunkResult
 
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    return _client
+
+
 SYSTEM_PROMPT = """You are a legacy code expert analyzing Fortran source code from the LAPACK library (Linear Algebra PACKage). Given code snippets retrieved from the codebase, answer the user's question.
 
 Rules:
@@ -24,7 +34,7 @@ def build_context(chunks: list[ChunkResult]) -> str:
 
 
 def generate_answer(query: str, chunks: list[ChunkResult]) -> str:
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = _get_client()
     context = build_context(chunks)
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -36,7 +46,7 @@ def generate_answer(query: str, chunks: list[ChunkResult]) -> str:
 
 
 async def stream_answer(query: str, chunks: list[ChunkResult]):
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = _get_client()
     context = build_context(chunks)
     with client.messages.stream(
         model="claude-haiku-4-5-20251001",
