@@ -62,3 +62,35 @@ def test_chunk_has_line_numbers():
     chunks = parse_fortran_file(SAMPLE_FORTRAN, "SRC/dgesv.f")
     assert chunks[0]["line_start"] >= 1
     assert chunks[0]["line_end"] >= chunks[0]["line_start"]
+
+
+MULTI_SUB_FORTRAN = """\
+      SUBROUTINE FOO( N )
+      INTEGER N
+      CALL HELPER_A( N )
+      RETURN
+      END SUBROUTINE FOO
+
+      SUBROUTINE BAR( M )
+      INTEGER M
+      CALL HELPER_B( M )
+      CALL HELPER_C( M )
+      RETURN
+      END SUBROUTINE BAR
+"""
+
+
+def test_per_chunk_calls_extraction():
+    """Each chunk should only contain calls from its own subroutine, not the whole file."""
+    chunks = parse_fortran_file(MULTI_SUB_FORTRAN, "SRC/test.f")
+    assert len(chunks) == 2
+
+    foo_chunk = next(c for c in chunks if c["subroutine_name"] == "FOO")
+    bar_chunk = next(c for c in chunks if c["subroutine_name"] == "BAR")
+
+    assert "HELPER_A" in foo_chunk["metadata"]["calls"]
+    assert "HELPER_B" not in foo_chunk["metadata"]["calls"]
+
+    assert "HELPER_B" in bar_chunk["metadata"]["calls"]
+    assert "HELPER_C" in bar_chunk["metadata"]["calls"]
+    assert "HELPER_A" not in bar_chunk["metadata"]["calls"]

@@ -78,7 +78,9 @@ def parse_fortran_file(content: str, file_path: str) -> list[dict]:
                 "routine_type": meta["routine_type"],
                 "precision_type": meta["precision_type"],
                 "content": chunk_content,
-                "metadata": {"calls": meta["calls"]},
+                "metadata": {"calls": list(set(
+                    m.group(1).upper() for m in CALL_RE.finditer(chunk_content)
+                ))},
             })
             current_name = None
 
