@@ -22,18 +22,12 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "lapack")
 
 def main():
     print("=== LegacyLens Ingestion ===\n")
-    src_dir = os.path.join(DATA_DIR, "SRC")
-    blas_dir = os.path.join(DATA_DIR, "BLAS", "SRC")
-
-    files = []
-    if os.path.isdir(src_dir):
-        files.extend(discover_fortran_files(src_dir))
-    if os.path.isdir(blas_dir):
-        files.extend(discover_fortran_files(blas_dir))
-
-    if not files:
-        print(f"ERROR: No Fortran files found. Run download_lapack.sh first.")
+    if not os.path.isdir(DATA_DIR):
+        print(f"ERROR: Data directory not found: {DATA_DIR}")
+        print("Run download_lapack.sh first.")
         sys.exit(1)
+
+    files = discover_fortran_files(DATA_DIR)
 
     print(f"Found {len(files)} Fortran files")
 

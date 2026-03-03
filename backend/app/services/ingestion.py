@@ -104,7 +104,7 @@ def discover_fortran_files(base_dir: str) -> list[str]:
     files = []
     for root, _, filenames in os.walk(base_dir):
         for f in filenames:
-            if f.endswith((".f", ".f90")):
+            if f.endswith((".f", ".f90", ".f95", ".f03")):
                 files.append(os.path.join(root, f))
     return sorted(files)
 

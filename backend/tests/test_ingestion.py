@@ -1,7 +1,7 @@
-import sys, os
+import sys, os, tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.ingestion import parse_fortran_file, extract_metadata
+from app.services.ingestion import parse_fortran_file, extract_metadata, discover_fortran_files
 
 SAMPLE_FORTRAN = """\
 *> \\brief <b> DGESV computes the solution to system of linear equations A * X = B</b>
@@ -94,3 +94,21 @@ def test_per_chunk_calls_extraction():
     assert "HELPER_B" in bar_chunk["metadata"]["calls"]
     assert "HELPER_C" in bar_chunk["metadata"]["calls"]
     assert "HELPER_A" not in bar_chunk["metadata"]["calls"]
+
+
+def test_discover_finds_f90_and_f95_files():
+    """discover_fortran_files should find .f, .f90, .f95, and .f03 files."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create files with various extensions
+        for name in ["test.f", "test.f90", "test.f95", "test.f03", "test.c", "test.py"]:
+            open(os.path.join(tmpdir, name), "w").close()
+
+        found = discover_fortran_files(tmpdir)
+        basenames = [os.path.basename(f) for f in found]
+
+        assert "test.f" in basenames
+        assert "test.f90" in basenames
+        assert "test.f95" in basenames
+        assert "test.f03" in basenames
+        assert "test.c" not in basenames
+        assert "test.py" not in basenames
