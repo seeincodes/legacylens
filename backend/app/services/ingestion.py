@@ -141,16 +141,17 @@ def store_chunks(chunks: list[dict], embeddings: list[list[float]]):
     conn = psycopg2.connect(settings.database_url)
     register_vector(conn)
     cur = conn.cursor()
-    for chunk, emb in zip(chunks, embeddings):
-        cur.execute(
-            """INSERT INTO code_chunks
+    sql = """INSERT INTO code_chunks
                 (file_path, line_start, line_end, subroutine_name,
                  routine_type, precision_type, content, metadata, embedding)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (chunk["file_path"], chunk["line_start"], chunk["line_end"],
-             chunk["subroutine_name"], chunk["routine_type"], chunk["precision_type"],
-             chunk["content"], psycopg2.extras.Json(chunk["metadata"]), emb),
-        )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+    data = [
+        (chunk["file_path"], chunk["line_start"], chunk["line_end"],
+         chunk["subroutine_name"], chunk["routine_type"], chunk["precision_type"],
+         chunk["content"], psycopg2.extras.Json(chunk["metadata"]), emb)
+        for chunk, emb in zip(chunks, embeddings)
+    ]
+    psycopg2.extras.execute_batch(cur, sql, data, page_size=100)
     conn.commit()
     cur.close()
     conn.close()
