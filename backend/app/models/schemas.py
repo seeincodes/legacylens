@@ -15,6 +15,7 @@ class ChunkResult(BaseModel):
     routine_type: str | None
     content: str
     relevance_score: float
+    calls: list[str] | None = None
 
 
 class QueryResponse(BaseModel):

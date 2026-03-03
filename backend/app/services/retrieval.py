@@ -43,7 +43,7 @@ def vector_search(embedding: list[float], top_k: int = 10, routine_type: str | N
     if routine_type:
         cur.execute(
             """SELECT id, file_path, line_start, line_end, subroutine_name,
-                      routine_type, content, 1 - (embedding <=> %s::vector) AS score
+                      routine_type, content, metadata, 1 - (embedding <=> %s::vector) AS score
                FROM code_chunks WHERE routine_type = %s
                ORDER BY embedding <=> %s::vector LIMIT %s""",
             (embedding, routine_type, embedding, top_k),
@@ -51,7 +51,7 @@ def vector_search(embedding: list[float], top_k: int = 10, routine_type: str | N
     else:
         cur.execute(
             """SELECT id, file_path, line_start, line_end, subroutine_name,
-                      routine_type, content, 1 - (embedding <=> %s::vector) AS score
+                      routine_type, content, metadata, 1 - (embedding <=> %s::vector) AS score
                FROM code_chunks ORDER BY embedding <=> %s::vector LIMIT %s""",
             (embedding, embedding, top_k),
         )
@@ -62,7 +62,8 @@ def vector_search(embedding: list[float], top_k: int = 10, routine_type: str | N
 
     return [
         {"id": r[0], "file_path": r[1], "line_start": r[2], "line_end": r[3],
-         "subroutine_name": r[4], "routine_type": r[5], "content": r[6], "score": float(r[7])}
+         "subroutine_name": r[4], "routine_type": r[5], "content": r[6],
+         "metadata": r[7], "score": float(r[8])}
         for r in rows
     ]
 
@@ -73,7 +74,7 @@ def keyword_search(query: str, top_k: int = 10) -> list[dict]:
 
     cur.execute(
         """SELECT id, file_path, line_start, line_end, subroutine_name,
-                  routine_type, content, ts_rank(fts, plainto_tsquery('english', %s)) AS score
+                  routine_type, content, metadata, ts_rank(fts, plainto_tsquery('english', %s)) AS score
            FROM code_chunks WHERE fts @@ plainto_tsquery('english', %s)
            ORDER BY score DESC LIMIT %s""",
         (query, query, top_k),
@@ -85,7 +86,8 @@ def keyword_search(query: str, top_k: int = 10) -> list[dict]:
 
     return [
         {"id": r[0], "file_path": r[1], "line_start": r[2], "line_end": r[3],
-         "subroutine_name": r[4], "routine_type": r[5], "content": r[6], "score": float(r[7])}
+         "subroutine_name": r[4], "routine_type": r[5], "content": r[6],
+         "metadata": r[7], "score": float(r[8])}
         for r in rows
     ]
 
@@ -96,11 +98,16 @@ def search(query: str, top_k: int = 5, routine_type: str | None = None) -> list[
     kw_results = keyword_search(query, top_k=10)
     merged = reciprocal_rank_fusion(vector_results, kw_results)
 
-    return [
-        ChunkResult(
-            file_path=r["file_path"], line_start=r["line_start"], line_end=r["line_end"],
-            subroutine_name=r.get("subroutine_name"), routine_type=r.get("routine_type"),
-            content=r["content"], relevance_score=round(r["rrf_score"], 4),
+    results = []
+    for r in merged[:top_k]:
+        meta = r.get("metadata") or {}
+        calls = meta.get("calls") if isinstance(meta, dict) else None
+        results.append(
+            ChunkResult(
+                file_path=r["file_path"], line_start=r["line_start"], line_end=r["line_end"],
+                subroutine_name=r.get("subroutine_name"), routine_type=r.get("routine_type"),
+                content=r["content"], relevance_score=round(r["rrf_score"], 4),
+                calls=calls,
+            )
         )
-        for r in merged[:top_k]
-    ]
+    return results
