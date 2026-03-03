@@ -3,6 +3,7 @@
 ## Phase 1: MVP (24 Hours - Tuesday Deadline)
 
 ### 1. Project Setup
+
 - [x] Initialize git repo and project structure
 - [x] Set up Python backend (FastAPI)
 - [x] Set up Next.js frontend
@@ -11,6 +12,7 @@
 - [x] Create database schema (code_chunks table, indexes)
 
 ### 2. Codebase Ingestion
+
 - [x] Download LAPACK source (double-precision SRC/ + BLAS/SRC/)
 - [x] Build file discovery: recursively scan for `.f` and `.f90` files
 - [x] Implement Fortran preprocessor (handle encoding, normalize whitespace, extract comments)
@@ -19,6 +21,7 @@
 - [x] Prepend metadata as text prefix to each chunk
 
 ### 3. Embedding & Storage
+
 - [x] Set up OpenAI embedding API integration
 - [x] Batch-generate embeddings for all chunks
 - [x] Insert chunks + embeddings + metadata into Supabase/pgvector
@@ -26,6 +29,7 @@
 - [x] Build HNSW and full-text search indexes
 
 ### 4. Retrieval Pipeline
+
 - [x] Implement query embedding (same model as ingestion)
 - [x] Implement vector similarity search (top-k=10)
 - [x] Implement basic relevance scoring and top-5 selection
@@ -33,6 +37,7 @@
 - [x] Test with sample queries ("What does DGESV do?", "Find eigenvalue routines")
 
 ### 5. Answer Generation
+
 - [x] Set up Claude API integration (Haiku 4.5)
 - [x] Build prompt template with retrieved context
 - [x] Implement streaming response
@@ -40,6 +45,7 @@
 - [x] Test end-to-end: query -> retrieve -> generate
 
 ### 6. Web Interface (MVP)
+
 - [x] Build query input component (natural language text box)
 - [x] Build results display (code snippets with syntax highlighting)
 - [x] Show file paths and line numbers for each result
@@ -47,6 +53,7 @@
 - [x] Connect frontend to backend API
 
 ### 7. Deployment (MVP)
+
 - [x] Deploy backend to Railway/Render
 - [x] Deploy frontend to Vercel
 - [x] Verify public accessibility
@@ -58,6 +65,7 @@
 ## Phase 2: Final Polish (Wednesday - G4 Deadline)
 
 ### 8. Code Understanding Features (pick 4+)
+
 - [x] Code Explanation: explain subroutine purpose in plain English
 - [x] Dependency Mapping: trace call chains (DGESV -> DGETRF -> DGETRS)
 - [x] Pattern Detection: find similar routines across the codebase
@@ -65,22 +73,25 @@
 - [x] Build frontend UI for code understanding features (action buttons on result cards + inline UnderstandPanel)
 
 ### 9. Search Improvements
+
 - [x] Implement hybrid search (vector + BM25/tsvector with RRF fusion)
 - [x] Add confidence/relevance scores to results
 - [x] Implement query expansion (LLM rephrases to multiple variants)
 - [x] Add metadata filters in UI (filter by routine type, precision)
 
 ### 10. UI Polish
+
 - [x] Add syntax highlighting for Fortran code
 - [x] Add "drill down" to view full file context
 - [x] Add loading states and error handling
 - [x] Responsive design
 
 ### 11. Documentation & Submission
-- [ ] Write RAG Architecture Document (1-2 pages)
-- [ ] Complete AI Cost Analysis (dev spend + projections)
+
+- [x] Write RAG Architecture Document (1-2 pages)
+- [x] Complete AI Cost Analysis (dev spend + projections)
 - [ ] Record demo video (3-5 min)
-- [ ] Update GitHub README (setup guide, architecture overview, deployed link)
+- [x] Update GitHub README (setup guide, architecture overview, deployed link)
 - [ ] Social post (X or LinkedIn)
 
 ---
@@ -88,20 +99,15 @@
 ## Phase 3: Final Submission (Sunday - GFA Deadline)
 
 ### 12. Evaluation & Metrics
+
 - [ ] Build ground truth dataset (20-30 query-answer pairs)
 - [ ] Measure Precision@5, Recall@5, MRR
 - [ ] Document failure modes and edge cases
 - [ ] Log actual latency metrics (p50, p95)
 
 ### 13. Performance & Reliability
+
 - [ ] Add query caching (LRU for embeddings, TTL for LLM responses)
 - [ ] Add structured logging (query, results, latency breakdown)
 - [ ] Test edge cases (empty queries, very long queries, nonsense input)
 - [ ] Ensure graceful degradation if APIs are down
-
-### 14. Interview Preparation
-- [ ] Prepare to discuss vector database selection rationale
-- [ ] Prepare to discuss chunking strategy tradeoffs
-- [ ] Prepare to discuss embedding model choice
-- [ ] Prepare to discuss retrieval failure handling
-- [ ] Prepare behavioral questions (ambiguity, pivoting, pressure)
