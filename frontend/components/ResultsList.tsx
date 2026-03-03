@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import CodeBlock from "./CodeBlock";
+import UnderstandPanel from "./UnderstandPanel";
+import type { UnderstandFeature, UnderstandResult } from "./UnderstandPanel";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const LAPACK_GITHUB_BASE =
   "https://github.com/Reference-LAPACK/lapack/blob/master";
@@ -30,12 +34,75 @@ const TYPE_STYLES: Record<string, { color: string; bg: string }> = {
   computational: { color: "var(--chalk-green)", bg: "var(--chalk-green-light)" },
 };
 
+const UNDERSTAND_BUTTONS: { feature: UnderstandFeature; label: string; color: string; bg: string }[] = [
+  { feature: "explain", label: "Explain", color: "var(--chalk-blue)", bg: "var(--chalk-blue-light)" },
+  { feature: "dependencies", label: "Deps", color: "var(--chalk-purple)", bg: "var(--chalk-purple-light)" },
+  { feature: "similar", label: "Similar", color: "var(--chalk-green)", bg: "var(--chalk-green-light)" },
+  { feature: "document", label: "Docs", color: "var(--chalk-amber)", bg: "var(--chalk-amber-light)" },
+];
+
+const ENDPOINT_MAP: Record<UnderstandFeature, string> = {
+  explain: "/api/understand/explain",
+  dependencies: "/api/understand/dependencies",
+  similar: "/api/understand/similar",
+  document: "/api/understand/document",
+};
+
+interface UnderstandState {
+  feature: UnderstandFeature | null;
+  result: UnderstandResult | null;
+  isLoading: boolean;
+  error: string;
+}
+
 export default function ResultsList({ chunks, isLoading, error, hasSearched }: ResultsListProps) {
   const [expandedChunks, setExpandedChunks] = useState<Record<string, boolean>>({});
+  const [understandState, setUnderstandState] = useState<Record<string, UnderstandState>>({});
 
   useEffect(() => {
     setExpandedChunks({});
+    setUnderstandState({});
   }, [chunks]);
+
+  const handleUnderstand = useCallback(async (chunkKey: string, subroutineName: string, feature: UnderstandFeature) => {
+    const current = understandState[chunkKey];
+
+    // Toggle off if same feature
+    if (current?.feature === feature && !current.isLoading) {
+      setUnderstandState((prev) => ({ ...prev, [chunkKey]: { feature: null, result: null, isLoading: false, error: "" } }));
+      return;
+    }
+
+    setUnderstandState((prev) => ({
+      ...prev,
+      [chunkKey]: { feature, result: null, isLoading: true, error: "" },
+    }));
+
+    try {
+      const response = await fetch(`${API_URL}${ENDPOINT_MAP[feature]}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subroutine_name: subroutineName }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.detail || `Request failed (${response.status})`);
+      }
+
+      const data = await response.json();
+      setUnderstandState((prev) => ({
+        ...prev,
+        [chunkKey]: { feature, result: { feature, data } as UnderstandResult, isLoading: false, error: "" },
+      }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Request failed";
+      setUnderstandState((prev) => ({
+        ...prev,
+        [chunkKey]: { feature, result: null, isLoading: false, error: message },
+      }));
+    }
+  }, [understandState]);
 
   if (!hasSearched && chunks.length === 0 && !isLoading && !error) return null;
 
@@ -107,6 +174,8 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
           color: "var(--ink-light)",
           bg: "var(--paper-dark)",
         };
+        const uState = understandState[chunkKey];
+        const hasSubroutine = !!chunk.subroutine_name;
 
         return (
           <div
@@ -246,6 +315,46 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
               </div>
             </div>
 
+            {/* Code understanding action buttons */}
+            {hasSubroutine && (
+              <div
+                className="px-4 sm:px-5 py-2 flex items-center gap-2 flex-wrap"
+                style={{ borderBottom: "1px dashed var(--paper-grid)" }}
+              >
+                <span
+                  className="text-xs mr-1"
+                  style={{
+                    fontFamily: "var(--font-architects-daughter)",
+                    color: "var(--ink-faint)",
+                  }}
+                >
+                  Understand:
+                </span>
+                {UNDERSTAND_BUTTONS.map((btn) => {
+                  const isActive = uState?.feature === btn.feature && !uState?.error;
+                  return (
+                    <button
+                      key={btn.feature}
+                      type="button"
+                      disabled={uState?.isLoading && uState?.feature !== btn.feature}
+                      onClick={() => handleUnderstand(chunkKey, chunk.subroutine_name!, btn.feature)}
+                      className="text-xs px-2 py-0.5 rounded-full border transition-colors"
+                      style={{
+                        fontFamily: "var(--font-jetbrains-mono)",
+                        color: isActive ? "white" : btn.color,
+                        borderColor: btn.color,
+                        background: isActive ? btn.color : btn.bg,
+                        opacity: uState?.isLoading && uState?.feature !== btn.feature ? 0.5 : 1,
+                        cursor: uState?.isLoading && uState?.feature !== btn.feature ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {uState?.isLoading && uState?.feature === btn.feature ? "…" : btn.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {isExpanded ? (
               <CodeBlock
                 code={chunk.content}
@@ -263,6 +372,23 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
               >
                 Code snippet collapsed.
               </div>
+            )}
+
+            {/* Understanding panel */}
+            {uState?.feature && (uState.isLoading || uState.result || uState.error) && (
+              uState.error ? (
+                <div className="px-4 sm:px-5 py-3" style={{ borderTop: "2px dashed var(--paper-grid)" }}>
+                  <p className="text-sm" style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--chalk-pink)" }}>
+                    {uState.error}
+                  </p>
+                </div>
+              ) : (
+                <UnderstandPanel
+                  feature={uState.feature}
+                  result={uState.result!}
+                  isLoading={uState.isLoading}
+                />
+              )
             )}
           </div>
         );
