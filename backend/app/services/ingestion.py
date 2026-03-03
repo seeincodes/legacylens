@@ -14,6 +14,10 @@ END_RE = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 CALL_RE = re.compile(r"CALL\s+(\w+)", re.IGNORECASE)
+BRIEF_RE = re.compile(r'\*>\s*\\brief\s*<b>\s*(.*?)</b>', re.IGNORECASE)
+PURPOSE_RE = re.compile(r'\*>\s*\\verbatim\s*\n((?:\*>.*\n)*)', re.MULTILINE)
+HTMLONLY_RE = re.compile(r'\*>\s*\\htmlonly.*?\\endhtmlonly\s*\n?', re.DOTALL)
+DOC_BANNER_RE = re.compile(r'\*\s*=+\s*DOCUMENTATION\s*=+\s*\n(?:\*\s*\n)*', re.IGNORECASE)
 PRECISION_MAP = {"s": "single", "d": "double", "c": "complex", "z": "double_complex"}
 
 
@@ -41,6 +45,57 @@ def extract_metadata(content: str, file_path: str) -> dict:
         "routine_type": detect_routine_type(content, file_path),
         "calls": calls,
     }
+
+
+def extract_description(content: str) -> str:
+    """Extract a human-readable description from Fortran comment headers.
+
+    Tries two patterns:
+    1. \\brief <b> ROUTINE description text </b>  -- strip the routine name prefix
+    2. If \\brief only has the routine name, look in the Purpose/\\verbatim section
+    """
+    # Pattern A: description inside \brief <b>...</b>
+    m = BRIEF_RE.search(content)
+    if m:
+        raw = m.group(1).strip()
+        # Check if this is more than just a routine name (e.g. "DPOTRF" vs
+        # "DGESV computes the solution ...").  A bare name is a single word
+        # with no spaces beyond leading/trailing whitespace.
+        if " " in raw:
+            # Strip leading routine name if present (e.g. "DGESV computes..." -> "computes...")
+            # The routine name is typically the first all-caps token.
+            tokens = raw.split(None, 1)
+            if len(tokens) == 2 and tokens[0].isupper():
+                return tokens[1].strip()
+            return raw
+        # Fall through to Pattern B if brief only contains the routine name.
+
+    # Pattern B: description in Purpose / \verbatim block
+    m = PURPOSE_RE.search(content)
+    if m:
+        block = m.group(1)
+        # Clean up Fortran comment markers and collect non-empty lines
+        lines: list[str] = []
+        for line in block.splitlines():
+            # Strip the leading "*>" marker
+            cleaned = re.sub(r'^\s*\*>\s?', '', line).strip()
+            if cleaned:
+                lines.append(cleaned)
+        if lines:
+            # Take up to the first 2 sentences (join lines, split on period)
+            text = " ".join(lines)
+            # Collapse whitespace
+            text = re.sub(r'\s+', ' ', text).strip()
+            return text
+
+    return ""
+
+
+def strip_html_noise(content: str) -> str:
+    """Remove \\htmlonly...\\endhtmlonly blocks and the DOCUMENTATION banner."""
+    result = HTMLONLY_RE.sub('', content)
+    result = DOC_BANNER_RE.sub('', result)
+    return result
 
 
 def parse_fortran_file(content: str, file_path: str) -> list[dict]:
@@ -110,13 +165,20 @@ def discover_fortran_files(base_dir: str) -> list[str]:
 
 
 def build_chunk_text(chunk: dict) -> str:
-    prefix = (
-        f"File: {chunk['file_path']} | "
-        f"Subroutine: {chunk['subroutine_name']} | "
-        f"Type: {chunk['routine_type']} | "
-        f"Precision: {chunk['precision_type']}"
-    )
-    return f"{prefix}\n\n{chunk['content']}"
+    desc = extract_description(chunk["content"])
+    clean_content = strip_html_noise(chunk["content"])
+
+    prefix_parts = [
+        f"File: {chunk['file_path']}",
+        f"Subroutine: {chunk['subroutine_name']}",
+        f"Type: {chunk['routine_type']}",
+        f"Precision: {chunk['precision_type']}",
+    ]
+    if desc:
+        prefix_parts.append(f"Description: {desc}")
+
+    prefix = " | ".join(prefix_parts)
+    return f"{prefix}\n\n{clean_content}"
 
 
 def generate_embeddings(texts: list[str], batch_size: int = 100) -> list[list[float]]:

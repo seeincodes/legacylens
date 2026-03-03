@@ -1,7 +1,7 @@
 import sys, os, tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.ingestion import parse_fortran_file, extract_metadata, discover_fortran_files
+from app.services.ingestion import parse_fortran_file, extract_metadata, discover_fortran_files, extract_description, strip_html_noise, build_chunk_text
 
 SAMPLE_FORTRAN = """\
 *> \\brief <b> DGESV computes the solution to system of linear equations A * X = B</b>
@@ -112,3 +112,74 @@ def test_discover_finds_f90_and_f95_files():
         assert "test.f03" in basenames
         assert "test.c" not in basenames
         assert "test.py" not in basenames
+
+
+# --- Fixtures for description extraction and HTML noise stripping ---
+
+FORTRAN_WITH_BRIEF_DESC = """\
+*> \\brief <b> DGESV computes the solution to system of linear equations A * X = B</b>
+*
+*  =========== DOCUMENTATION ===========
+*
+*> \\htmlonly
+*> Download links here
+*> <a href="http://example.com">[TGZ]</a>
+*> \\endhtmlonly
+*
+      SUBROUTINE DGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+      RETURN
+      END
+"""
+
+FORTRAN_WITH_PURPOSE_ONLY = """\
+*> \\brief \\b DPOTRF
+*
+*> \\par Purpose:
+*  =============
+*>
+*> \\verbatim
+*>
+*> DPOTRF computes the Cholesky factorization of a real symmetric
+*> positive definite matrix A.
+*>
+*> \\endverbatim
+*
+      SUBROUTINE DPOTRF( UPLO, N, A, LDA, INFO )
+      RETURN
+      END
+"""
+
+
+def test_extract_description_from_brief():
+    desc = extract_description(FORTRAN_WITH_BRIEF_DESC)
+    assert "solution" in desc.lower() or "linear equations" in desc.lower()
+
+
+def test_extract_description_from_purpose():
+    desc = extract_description(FORTRAN_WITH_PURPOSE_ONLY)
+    assert "cholesky" in desc.lower()
+
+
+def test_extract_description_no_desc():
+    desc = extract_description("      SUBROUTINE FOO(N)\n      END")
+    assert desc == ""
+
+
+def test_strip_html_noise_removes_htmlonly():
+    result = strip_html_noise(FORTRAN_WITH_BRIEF_DESC)
+    assert "htmlonly" not in result
+    assert "Download" not in result
+    assert "href" not in result
+
+
+def test_strip_html_noise_removes_doc_banner():
+    result = strip_html_noise(FORTRAN_WITH_BRIEF_DESC)
+    assert "DOCUMENTATION" not in result
+
+
+def test_build_chunk_text_includes_description():
+    chunks = parse_fortran_file(FORTRAN_WITH_BRIEF_DESC, "SRC/dgesv.f")
+    text = build_chunk_text(chunks[0])
+    assert "Description:" in text
+    # Should NOT contain htmlonly noise
+    assert "htmlonly" not in text
