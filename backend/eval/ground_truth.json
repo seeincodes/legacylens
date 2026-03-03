@@ -3,7 +3,7 @@
     "id": 1,
     "query": "What does DGESV do?",
     "expected_routines": ["DGESV"],
-    "related_routines": ["DGETRF", "DGETRS"],
+    "related_routines": ["DGETRF", "DGETRS", "SGESV", "CGESV", "ZGESV", "DGESVX", "DGETF2", "DLASWP"],
     "category": "routine_lookup",
     "description": "Solves a general system of linear equations A*X = B using LU factorization"
   },
@@ -11,7 +11,7 @@
     "id": 2,
     "query": "Find eigenvalue routines",
     "expected_routines": ["DGEEV", "DSYEV", "DGEEVX"],
-    "related_routines": ["DHSEQR", "DTREVC", "DSYEVD"],
+    "related_routines": ["DHSEQR", "DTREVC", "DSYEVD", "DSYEVR", "DGEHRD", "DORGHR", "SGEEV", "ZGEEV", "DGEEVX", "DGEBAL"],
     "category": "concept_search",
     "description": "Routines that compute eigenvalues of matrices"
   },
@@ -19,7 +19,7 @@
     "id": 3,
     "query": "How does LU factorization work in LAPACK?",
     "expected_routines": ["DGETRF"],
-    "related_routines": ["DGETRF2", "DLASWP", "DGESV"],
+    "related_routines": ["DGETRF2", "DLASWP", "DGESV", "SGETRF", "ZGETRF", "DGETRS", "IDAMAX", "DGETF2"],
     "category": "concept_search",
     "description": "LU factorization with partial pivoting"
   },
@@ -27,7 +27,7 @@
     "id": 4,
     "query": "What is DGEMM?",
     "expected_routines": ["DGEMM"],
-    "related_routines": ["DTRMM", "DSYMM"],
+    "related_routines": ["DTRMM", "DSYMM", "SGEMM", "ZGEMM", "CGEMM", "DGEMV", "DSYRK", "DSYR2K"],
     "category": "routine_lookup",
     "description": "General matrix-matrix multiplication (BLAS level 3)"
   },
@@ -35,7 +35,7 @@
     "id": 5,
     "query": "Solve least squares problem",
     "expected_routines": ["DGELS", "DGELSS", "DGELSD"],
-    "related_routines": ["DGELSY", "DLALSD"],
+    "related_routines": ["DGELSY", "DLALSD", "DGEQRF", "DORMQR", "DGELQF", "SGELS", "ZGELS"],
     "category": "concept_search",
     "description": "Routines for solving overdetermined or underdetermined linear systems"
   },
@@ -43,7 +43,7 @@
     "id": 6,
     "query": "Singular value decomposition",
     "expected_routines": ["DGESVD", "DGESDD"],
-    "related_routines": ["DBDSQR", "DBDSDC", "DGEBRD"],
+    "related_routines": ["DBDSQR", "DBDSDC", "DGEBRD", "SGESVD", "ZGESVD", "DORMBR", "DLASQ1", "DGESVDX", "DGELSD"],
     "category": "concept_search",
     "description": "SVD computation routines"
   },
@@ -51,7 +51,7 @@
     "id": 7,
     "query": "What does DTRSV do?",
     "expected_routines": ["DTRSV"],
-    "related_routines": ["DTRSM", "DTRMV"],
+    "related_routines": ["DTRSM", "DTRMV", "STRSV", "ZTRSV", "DTPSV", "DTBSV", "DTRMM"],
     "category": "routine_lookup",
     "description": "Solves a triangular system of equations (BLAS level 2)"
   },
@@ -59,7 +59,7 @@
     "id": 8,
     "query": "Cholesky factorization",
     "expected_routines": ["DPOTRF"],
-    "related_routines": ["DPOTRS", "DPOSV", "DPOTF2"],
+    "related_routines": ["DPOTRS", "DPOSV", "DPOTF2", "SPOTRF", "ZPOTRF", "DPOTRI", "DPPTRF", "DPBTRF", "DPOCON"],
     "category": "concept_search",
     "description": "Cholesky decomposition for symmetric positive definite matrices"
   },
@@ -67,7 +67,7 @@
     "id": 9,
     "query": "QR factorization routines",
     "expected_routines": ["DGEQRF", "DORGQR"],
-    "related_routines": ["DGEQP3", "DORMQR", "DGEQR2"],
+    "related_routines": ["DGEQP3", "DORMQR", "DGEQR2", "SGEQRF", "ZGEQRF", "DLARF", "DLARFG", "DGERQF", "DTZRZF"],
     "category": "concept_search",
     "description": "QR decomposition and related orthogonal transformations"
   },
@@ -75,7 +75,7 @@
     "id": 10,
     "query": "How to compute matrix inverse?",
     "expected_routines": ["DGETRI"],
-    "related_routines": ["DGETRF", "DTRTRI"],
+    "related_routines": ["DGETRF", "DTRTRI", "SGETRI", "ZGETRI", "DPOTRI", "DSYTRI", "DGETRS"],
     "category": "concept_search",
     "description": "Matrix inversion via LU factorization"
   },
@@ -83,7 +83,7 @@
     "id": 11,
     "query": "What is DAXPY?",
     "expected_routines": ["DAXPY"],
-    "related_routines": ["DCOPY", "DSCAL"],
+    "related_routines": ["DCOPY", "DSCAL", "SAXPY", "ZAXPY", "CAXPY", "DDOT", "DNRM2", "DASUM"],
     "category": "routine_lookup",
     "description": "Computes y = alpha*x + y (BLAS level 1)"
   },
@@ -91,7 +91,7 @@
     "id": 12,
     "query": "Symmetric eigenvalue problem",
     "expected_routines": ["DSYEV", "DSYEVD"],
-    "related_routines": ["DSYEVX", "DSYEVR", "DSYTRD"],
+    "related_routines": ["DSYEVX", "DSYEVR", "DSYTRD", "DSTEQR", "DSTERF", "DORMTR", "SSYEV", "DSYGST"],
     "category": "concept_search",
     "description": "Eigenvalues and eigenvectors of symmetric matrices"
   },
@@ -99,7 +99,7 @@
     "id": 13,
     "query": "Matrix norm computation",
     "expected_routines": ["DLANGE", "DLANSY"],
-    "related_routines": ["DLASSQ", "DNRM2"],
+    "related_routines": ["DLASSQ", "DNRM2", "SLANGE", "ZLANGE", "DLANTR", "DLANST", "DLANGT", "DLANHS"],
     "category": "concept_search",
     "description": "Compute various matrix norms (Frobenius, 1-norm, inf-norm)"
   },
@@ -107,7 +107,7 @@
     "id": 14,
     "query": "What does DGETRF do?",
     "expected_routines": ["DGETRF"],
-    "related_routines": ["DGETRF2", "DLASWP", "DGESV"],
+    "related_routines": ["DGETRF2", "DLASWP", "DGESV", "SGETRF", "ZGETRF", "DGETF2", "DGETRS", "IDAMAX"],
     "category": "routine_lookup",
     "description": "Computes LU factorization of a general M-by-N matrix"
   },
@@ -115,7 +115,7 @@
     "id": 15,
     "query": "Tridiagonal eigenvalue solver",
     "expected_routines": ["DSTEQR", "DSTEV"],
-    "related_routines": ["DSTERF", "DSTEVD", "DLAED0"],
+    "related_routines": ["DSTERF", "DSTEVD", "DLAED0", "DSTEVX", "DSTEVR", "DPTEQR", "DLAED1", "DSYTRD"],
     "category": "concept_search",
     "description": "Eigenvalue routines for tridiagonal matrices"
   },
@@ -123,7 +123,7 @@
     "id": 16,
     "query": "Banded matrix solver",
     "expected_routines": ["DGBSV", "DGBTRF"],
-    "related_routines": ["DGBTRS", "DGBCON"],
+    "related_routines": ["DGBTRS", "DGBCON", "SGBSV", "ZGBSV", "DGBSVX", "DPBSV", "DPBTRF", "DPBTRS"],
     "category": "concept_search",
     "description": "Solve banded linear systems"
   },
@@ -131,7 +131,7 @@
     "id": 17,
     "query": "What is DNRM2?",
     "expected_routines": ["DNRM2"],
-    "related_routines": ["DASUM", "DDOT"],
+    "related_routines": ["DASUM", "DDOT", "SNRM2", "DZNRM2", "DLASSQ", "DSCAL", "IDAMAX"],
     "category": "routine_lookup",
     "description": "Euclidean norm of a vector (BLAS level 1)"
   },
@@ -139,7 +139,7 @@
     "id": 18,
     "query": "Condition number estimation",
     "expected_routines": ["DGECON", "DPOCON"],
-    "related_routines": ["DLACON", "DLACN2"],
+    "related_routines": ["DLACON", "DLACN2", "SGECON", "ZGECON", "DTRCON", "DSYCON", "DGETRF", "DGEEQU"],
     "category": "concept_search",
     "description": "Estimate the reciprocal condition number of a matrix"
   },
@@ -147,7 +147,7 @@
     "id": 19,
     "query": "Schur decomposition",
     "expected_routines": ["DGEES", "DHSEQR"],
-    "related_routines": ["DGEESX", "DTRSEN"],
+    "related_routines": ["DGEESX", "DTRSEN", "SGEES", "ZGEES", "DGEHRD", "DORGHR", "DTREVC", "DTREXC"],
     "category": "concept_search",
     "description": "Compute Schur form of a general matrix"
   },
@@ -155,7 +155,7 @@
     "id": 20,
     "query": "How does LAPACK handle pivoting?",
     "expected_routines": ["DLASWP", "DGETRF"],
-    "related_routines": ["IDAMAX", "DLAPMT"],
+    "related_routines": ["IDAMAX", "DLAPMT", "DGETF2", "DGEQP3", "DLAPMR", "DPSTRF", "DGETRF2"],
     "category": "concept_search",
     "description": "Row and column pivoting strategies"
   },
@@ -163,7 +163,7 @@
     "id": 21,
     "query": "What is DDOT?",
     "expected_routines": ["DDOT"],
-    "related_routines": ["DAXPY", "DNRM2"],
+    "related_routines": ["DAXPY", "DNRM2", "SDOT", "ZDOTC", "ZDOTU", "DSCAL", "DCOPY", "DASUM"],
     "category": "routine_lookup",
     "description": "Dot product of two vectors (BLAS level 1)"
   },
@@ -171,7 +171,7 @@
     "id": 22,
     "query": "Generalized eigenvalue problem",
     "expected_routines": ["DGGEV", "DSYGV"],
-    "related_routines": ["DGGES", "DSYGVD"],
+    "related_routines": ["DGGES", "DSYGVD", "SGGEV", "ZGGEV", "DSYGVX", "DTGEVC", "DHGEQZ", "DGGBAL"],
     "category": "concept_search",
     "description": "Solve Ax = lambda*Bx type problems"
   },
@@ -179,7 +179,7 @@
     "id": 23,
     "query": "Triangular matrix operations",
     "expected_routines": ["DTRMM", "DTRSM"],
-    "related_routines": ["DTRMV", "DTRSV", "DTRTRI"],
+    "related_routines": ["DTRMV", "DTRSV", "DTRTRI", "STRMM", "ZTRSM", "DTRTI2", "DLAUUM", "DTRTRS"],
     "category": "concept_search",
     "description": "BLAS level 3 triangular matrix multiplication and solve"
   },
@@ -187,7 +187,7 @@
     "id": 24,
     "query": "Householder reflections",
     "expected_routines": ["DLARFG", "DLARF"],
-    "related_routines": ["DLARFT", "DLARFB"],
+    "related_routines": ["DLARFT", "DLARFB", "SLARFG", "ZLARFG", "DLARFX", "DGEQRF", "DLARFGP", "DORG2R"],
     "category": "concept_search",
     "description": "Generate and apply Householder reflectors"
   },
@@ -195,7 +195,7 @@
     "id": 25,
     "query": "What does DPOTRS do?",
     "expected_routines": ["DPOTRS"],
-    "related_routines": ["DPOTRF", "DPOSV"],
+    "related_routines": ["DPOTRF", "DPOSV", "SPOTRS", "ZPOTRS", "DPOTRI", "DPPTRS", "DTRTRS", "DPOCON"],
     "category": "routine_lookup",
     "description": "Solves a system using Cholesky factorization"
   }

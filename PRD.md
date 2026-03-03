@@ -45,7 +45,8 @@ Code Understanding Features (implement 4+ of 8):
 
 | Metric | Target |
 |---|---|
-| Query latency | <3 seconds end-to-end |
+| Retrieval latency | <3 seconds (embedding + DB lookup) |
+| Answer generation | Streaming via SSE (5–30s total, depends on LLM response length) |
 | Retrieval precision | >70% relevant chunks in top-5 |
 | Codebase coverage | 100% of files indexed |
 | Ingestion throughput | 100K+ LOC in <5 minutes |

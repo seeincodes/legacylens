@@ -1,6 +1,6 @@
 # LegacyLens
 
-RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natural language questions about ~670 Fortran files and 100K+ lines of linear algebra code.
+RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natural language questions about 2,294 Fortran files and 977K lines of linear algebra code.
 
 ## Live Demo
 
@@ -9,20 +9,21 @@ RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natura
 
 ## Features
 
-- **Hybrid Search** — Vector similarity (pgvector HNSW) + keyword search (PostgreSQL tsvector) merged with Reciprocal Rank Fusion
-- **Streaming Answers** — Claude Haiku generates explanations with `[file:line]` citations via Server-Sent Events
-- **Query Expansion** — LLM rephrases queries into multiple variants for better recall
-- **Code Understanding** — Explain routines, trace dependency chains, find similar code, generate documentation
+- **Hybrid Search** — Vector similarity (pgvector HNSW) + full-text keyword search (PostgreSQL tsvector) fused with Reciprocal Rank Fusion, returning normalized 0–1 relevance scores
+- **Streaming Answers** — Claude Haiku generates explanations with inline `[SRC/file.f:line-line]` citations streamed via Server-Sent Events
+- **Query Expansion** — Optional LLM-powered rephrasing into 2–3 query variants for higher recall
+- **Code Understanding** — Per-routine actions: Explain, ELI5, Dependency tracing, Similar routine search, Documentation generation
 - **Metadata Filtering** — Filter by routine type (BLAS, driver, computational) and precision (single, double, complex)
 - **Fortran Syntax Highlighting** — Custom tokenizer for Fortran keywords, strings, numbers, and comments
+- **Evaluation Suite** — 25-query ground truth benchmark measuring Precision@K, Recall@K, MRR, and per-query latency
 
 ## Architecture
 
 ```
 User Query → Next.js (Vercel) → FastAPI (Fly.io) → OpenAI Embeddings
-                                        ↓                    ↓
-                                  Claude Haiku ← Supabase/pgvector
-                                  (streaming)    (hybrid search)
+                                       ↓                    ↓
+                                 Claude Haiku ← Supabase/pgvector
+                                 (streaming)    (hybrid search)
 ```
 
 See [docs/RAG_ARCHITECTURE.md](docs/RAG_ARCHITECTURE.md) for full details.
@@ -32,7 +33,7 @@ See [docs/RAG_ARCHITECTURE.md](docs/RAG_ARCHITECTURE.md) for full details.
 | Layer      | Technology                              |
 | ---------- | --------------------------------------- |
 | Frontend   | Next.js 16, React 19, Tailwind CSS 4    |
-| Backend    | Python 3.11, FastAPI, Uvicorn           |
+| Backend    | Python 3.12, FastAPI, Uvicorn           |
 | Database   | PostgreSQL + pgvector (Supabase)        |
 | Embeddings | OpenAI text-embedding-3-small (1536d)   |
 | LLM        | Claude Haiku 4.5                        |
@@ -50,7 +51,7 @@ See [docs/RAG_ARCHITECTURE.md](docs/RAG_ARCHITECTURE.md) for full details.
 
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # Copy and fill in environment variables
@@ -59,7 +60,8 @@ cp .env.example .env
 # Set up database schema
 psql $DATABASE_URL < scripts/setup_db.sql
 
-# Ingest LAPACK source (one-time)
+# Download and ingest LAPACK source (one-time)
+bash scripts/download_lapack.sh
 python scripts/ingest.py
 
 # Start server
@@ -87,33 +89,48 @@ Open [http://localhost:3000](http://localhost:3000).
 | `OPENAI_API_KEY`    | Yes      | For embedding generation                     |
 | `ANTHROPIC_API_KEY` | Yes      | For answer generation and code understanding |
 | `DATABASE_URL`      | Yes      | PostgreSQL connection string with pgvector   |
-| `SUPABASE_URL`      | No       | Supabase project URL                         |
-| `SUPABASE_ANON_KEY` | No       | Supabase anonymous key                       |
 
 ## API Endpoints
 
-| Method | Path                           | Description                     |
-| ------ | ------------------------------ | ------------------------------- |
-| `POST` | `/api/query`                   | Streaming search + answer (SSE) |
-| `POST` | `/api/query/sync`              | Non-streaming search + answer   |
-| `GET`  | `/api/file`                    | Get full file content           |
-| `POST` | `/api/understand/explain`      | Explain a subroutine            |
-| `POST` | `/api/understand/dependencies` | Trace call chains               |
-| `POST` | `/api/understand/similar`      | Find similar routines           |
-| `POST` | `/api/understand/document`     | Generate documentation          |
-| `GET`  | `/api/health`                  | Health check                    |
+| Method | Path                           | Description                              |
+| ------ | ------------------------------ | ---------------------------------------- |
+| `POST` | `/api/query`                   | Streaming search + answer (SSE)          |
+| `POST` | `/api/query/sync`              | Non-streaming search + answer            |
+| `GET`  | `/api/file/{file_path}`        | Get full file content by path            |
+| `POST` | `/api/understand/explain`      | Explain a subroutine                     |
+| `POST` | `/api/understand/eli5`         | ELI5 explanation (kid-friendly + emojis) |
+| `POST` | `/api/understand/dependencies` | Trace call dependency chains             |
+| `POST` | `/api/understand/similar`      | Find similar routines by embedding       |
+| `POST` | `/api/understand/document`     | Generate structured documentation        |
+| `GET`  | `/api/health`                  | Health check                             |
+
+## Evaluation
+
+Run the retrieval eval suite against the 25-query ground truth:
+
+```bash
+cd backend
+python -m eval.run_eval              # default top-5
+python -m eval.run_eval --expand     # with query expansion
+python -m eval.run_eval --top-k 10   # evaluate at top-10
+```
+
+Metrics: Precision@K, Recall@K, MRR, Hit Rate, per-category breakdown, and latency percentiles.
+
+## Performance
+
+| Metric              | Result                                            |
+| ------------------- | ------------------------------------------------- |
+| Retrieval latency   | ~2s median (p95 < 3s) — embedding + DB lookup     |
+| Answer generation   | 5–30s streaming — depends on LLM response length  |
+| Codebase coverage   | 2,294 files / 977K LOC indexed                    |
+| Answer citations    | Correct file paths and line ranges                |
+| Per-query cost      | ~$0.004–0.005                                     |
 
 ## Documentation
 
 - [RAG Architecture](docs/RAG_ARCHITECTURE.md) — System design, retrieval pipeline, technology choices
 - [AI Cost Analysis](docs/AI_COST_ANALYSIS.md) — Development spend, per-query costs, production projections
+- [Failure Modes](docs/FAILURE_MODES.md) — Known edge cases and retrieval failure analysis
 - [Tech Stack](TECH_STACK.md) — Detailed technology decisions and schema
 - [PRD](PRD.md) — Product requirements and scope
-
-## Cost
-
-- **Development total:** ~$2.14
-- **Per query:** ~$0.004–0.005
-- **100 users at 5 queries/day:** ~$60/month
-
-See [docs/AI_COST_ANALYSIS.md](docs/AI_COST_ANALYSIS.md) for full breakdown.
