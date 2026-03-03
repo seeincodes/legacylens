@@ -144,32 +144,29 @@ def vector_search(
     routine_type: str | None = None,
     precision_type: str | None = None,
 ) -> list[dict]:
-    import psycopg2
-    from pgvector.psycopg2 import register_vector
+    from app.db import get_connection
 
-    conn = psycopg2.connect(settings.database_url)
-    register_vector(conn)
-    cur = conn.cursor()
+    with get_connection() as conn:
+        cur = conn.cursor()
 
-    conditions = []
-    params: list[str] = []
-    if routine_type:
-        conditions.append("routine_type = %s")
-        params.append(routine_type)
-    if precision_type:
-        conditions.append("precision_type = %s")
-        params.append(precision_type)
+        conditions = []
+        params: list[str] = []
+        if routine_type:
+            conditions.append("routine_type = %s")
+            params.append(routine_type)
+        if precision_type:
+            conditions.append("precision_type = %s")
+            params.append(precision_type)
 
-    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
-                     routine_type, content, metadata, 1 - (embedding <=> %s::vector) AS score
-              FROM code_chunks {where}
-              ORDER BY embedding <=> %s::vector LIMIT %s"""
-    cur.execute(sql, [embedding, *params, embedding, top_k])
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
+                         routine_type, content, metadata, 1 - (embedding <=> %s::vector) AS score
+                  FROM code_chunks {where}
+                  ORDER BY embedding <=> %s::vector LIMIT %s"""
+        cur.execute(sql, [embedding, *params, embedding, top_k])
 
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+        rows = cur.fetchall()
+        cur.close()
 
     return [
         {"id": r[0], "file_path": r[1], "line_start": r[2], "line_end": r[3],
@@ -185,30 +182,29 @@ def keyword_search(
     routine_type: str | None = None,
     precision_type: str | None = None,
 ) -> list[dict]:
-    import psycopg2
+    from app.db import get_connection
 
-    conn = psycopg2.connect(settings.database_url)
-    cur = conn.cursor()
+    with get_connection() as conn:
+        cur = conn.cursor()
 
-    conditions = ["fts @@ plainto_tsquery('english', %s)"]
-    params: list[str] = [query]
-    if routine_type:
-        conditions.append("routine_type = %s")
-        params.append(routine_type)
-    if precision_type:
-        conditions.append("precision_type = %s")
-        params.append(precision_type)
+        conditions = ["fts @@ plainto_tsquery('english', %s)"]
+        params: list[str] = [query]
+        if routine_type:
+            conditions.append("routine_type = %s")
+            params.append(routine_type)
+        if precision_type:
+            conditions.append("precision_type = %s")
+            params.append(precision_type)
 
-    where = " AND ".join(conditions)
-    sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
-                     routine_type, content, metadata, ts_rank(fts, plainto_tsquery('english', %s)) AS score
-              FROM code_chunks WHERE {where}
-              ORDER BY score DESC LIMIT %s"""
-    cur.execute(sql, [query, *params, top_k])
+        where = " AND ".join(conditions)
+        sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
+                         routine_type, content, metadata, ts_rank(fts, plainto_tsquery('english', %s)) AS score
+                  FROM code_chunks WHERE {where}
+                  ORDER BY score DESC LIMIT %s"""
+        cur.execute(sql, [query, *params, top_k])
 
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+        rows = cur.fetchall()
+        cur.close()
 
     return [
         {"id": r[0], "file_path": r[1], "line_start": r[2], "line_end": r[3],
