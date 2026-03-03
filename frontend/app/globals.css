@@ -21,6 +21,8 @@
   --code-text: #cdd6f4;
   --code-comment: #6c7086;
   --code-keyword: #cba6f7;
+  --code-string: #f9e2af;
+  --code-number: #94e2d5;
   --code-line: #313244;
   --shadow: rgba(44, 36, 22, 0.08);
 }

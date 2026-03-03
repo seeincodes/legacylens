@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import CodeBlock from "./CodeBlock";
 
+const LAPACK_GITHUB_BASE =
+  "https://github.com/Reference-LAPACK/lapack/blob/master";
+
 interface Chunk {
   file_path: string;
   line_start: number;
@@ -16,6 +19,9 @@ interface Chunk {
 
 interface ResultsListProps {
   chunks: Chunk[];
+  isLoading: boolean;
+  error: string;
+  hasSearched: boolean;
 }
 
 const TYPE_STYLES: Record<string, { color: string; bg: string }> = {
@@ -24,19 +30,19 @@ const TYPE_STYLES: Record<string, { color: string; bg: string }> = {
   computational: { color: "var(--chalk-green)", bg: "var(--chalk-green-light)" },
 };
 
-export default function ResultsList({ chunks }: ResultsListProps) {
+export default function ResultsList({ chunks, isLoading, error, hasSearched }: ResultsListProps) {
   const [expandedChunks, setExpandedChunks] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setExpandedChunks({});
   }, [chunks]);
 
-  if (chunks.length === 0) return null;
+  if (!hasSearched && chunks.length === 0 && !isLoading && !error) return null;
 
   return (
     <div className="w-full space-y-4 fade-in-up">
       {/* Section header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
         <h2
           className="text-lg font-bold"
           style={{
@@ -51,7 +57,7 @@ export default function ResultsList({ chunks }: ResultsListProps) {
           style={{ borderBottom: "2px dashed var(--paper-grid)" }}
         />
         <span
-          className="text-xs"
+          className="text-xs ml-auto"
           style={{
             fontFamily: "var(--font-jetbrains-mono)",
             color: "var(--ink-faint)",
@@ -60,6 +66,39 @@ export default function ResultsList({ chunks }: ResultsListProps) {
           {chunks.length} result{chunks.length !== 1 && "s"}
         </span>
       </div>
+
+      {isLoading && (
+        <div className="math-card p-4">
+          <p
+            className="text-sm"
+            style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)" }}
+          >
+            Searching and retrieving relevant code snippets...
+          </p>
+        </div>
+      )}
+
+      {!isLoading && error && (
+        <div className="math-card p-4" style={{ borderColor: "var(--chalk-pink)" }}>
+          <p
+            className="text-sm"
+            style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--chalk-pink)" }}
+          >
+            {error}
+          </p>
+        </div>
+      )}
+
+      {!isLoading && !error && hasSearched && chunks.length === 0 && (
+        <div className="math-card p-4">
+          <p
+            className="text-sm"
+            style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)" }}
+          >
+            No matching code chunks found for this query and filter combination.
+          </p>
+        </div>
+      )}
 
       {chunks.map((chunk, i) => {
         const chunkKey = `${chunk.file_path}:${chunk.line_start}-${chunk.line_end}:${i}`;
@@ -81,10 +120,10 @@ export default function ResultsList({ chunks }: ResultsListProps) {
           >
             {/* Chunk header */}
             <div
-              className="px-5 py-3 flex items-center justify-between"
+              className="px-4 sm:px-5 py-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
               style={{ borderBottom: "1px dashed var(--paper-grid)" }}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 {/* Result number */}
                 <span
                   className="text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full"
@@ -99,7 +138,7 @@ export default function ResultsList({ chunks }: ResultsListProps) {
 
                 {/* Subroutine name */}
                 <span
-                  className="text-xl font-bold"
+                  className="text-lg sm:text-xl font-bold"
                   style={{
                     fontFamily: "var(--font-architects-daughter)",
                     color: "var(--ink)",
@@ -124,7 +163,7 @@ export default function ResultsList({ chunks }: ResultsListProps) {
               </div>
 
               {/* Relevance score with label + per-card toggle */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span
                   className="text-xs px-2 py-0.5 rounded-full"
                   style={{
@@ -189,6 +228,21 @@ export default function ResultsList({ chunks }: ResultsListProps) {
                 >
                   {isExpanded ? "Hide code" : "Show code"}
                 </button>
+                <a
+                  href={`${LAPACK_GITHUB_BASE}/${chunk.file_path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs px-2 py-0.5 rounded-full border transition-colors"
+                  style={{
+                    fontFamily: "var(--font-jetbrains-mono)",
+                    color: "var(--chalk-purple)",
+                    borderColor: "var(--chalk-purple)",
+                    background: "var(--chalk-purple-light)",
+                    textDecoration: "none",
+                  }}
+                >
+                  View full file
+                </a>
               </div>
             </div>
 
@@ -201,7 +255,7 @@ export default function ResultsList({ chunks }: ResultsListProps) {
               />
             ) : (
               <div
-                className="px-5 py-3 text-sm"
+                className="px-4 sm:px-5 py-3 text-sm"
                 style={{
                   fontFamily: "var(--font-crimson-pro)",
                   color: "var(--ink-light)",
@@ -213,6 +267,7 @@ export default function ResultsList({ chunks }: ResultsListProps) {
           </div>
         );
       })}
+
     </div>
   );
 }

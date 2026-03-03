@@ -70,10 +70,10 @@
 - [x] Add metadata filters in UI (filter by routine type, precision)
 
 ### 10. UI Polish
-- [ ] Add syntax highlighting for Fortran code
-- [ ] Add "drill down" to view full file context
-- [ ] Add loading states and error handling
-- [ ] Responsive design
+- [x] Add syntax highlighting for Fortran code
+- [x] Add "drill down" to view full file context
+- [x] Add loading states and error handling
+- [x] Responsive design
 
 ### 11. Documentation & Submission
 - [ ] Write RAG Architecture Document (1-2 pages)

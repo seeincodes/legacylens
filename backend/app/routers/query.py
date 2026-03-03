@@ -1,7 +1,8 @@
 import json
 import os
+from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.models.schemas import QueryRequest, QueryResponse
@@ -9,6 +10,60 @@ from app.services.retrieval import search
 from app.services.generation import generate_answer, stream_answer
 
 router = APIRouter()
+REPO_ROOT = Path(__file__).resolve().parents[3]
+LAPACK_BASE_DIR = (REPO_ROOT / "data" / "lapack").resolve()
+
+
+def _resolve_lapack_file(file_path: str) -> Path | None:
+    raw = file_path.strip().replace("\\", "/")
+    if raw.startswith("file://"):
+        raw = raw[len("file://"):]
+
+    candidates: list[Path] = []
+
+    # Absolute path input from older ingestions or alternate metadata formats.
+    if Path(raw).is_absolute():
+        candidates.append(Path(raw))
+
+    # Raw relative path directly under data/lapack.
+    candidates.append(LAPACK_BASE_DIR / raw.lstrip("/"))
+
+    for prefix in ("data/lapack/", "lapack/"):
+        if raw.startswith(prefix):
+            candidates.append(LAPACK_BASE_DIR / raw[len(prefix):])
+
+    for marker in ("BLAS/SRC/", "SRC/"):
+        idx = raw.find(marker)
+        if idx != -1:
+            candidates.append(LAPACK_BASE_DIR / raw[idx:])
+
+    seen: set[str] = set()
+    base = str(LAPACK_BASE_DIR)
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        resolved_str = str(resolved)
+        if resolved_str in seen:
+            continue
+        seen.add(resolved_str)
+
+        # Prevent path traversal: only serve files inside data/lapack.
+        if os.path.commonpath([base, resolved_str]) != base:
+            continue
+        if resolved.is_file():
+            return resolved
+    return None
+
+
+def _read_file_response(file_path: str) -> dict:
+    resolved = _resolve_lapack_file(file_path)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+
+    with open(resolved, "r", errors="replace") as f:
+        content = f.read()
+
+    rel_path = str(resolved.relative_to(LAPACK_BASE_DIR))
+    return {"file_path": rel_path, "content": content}
 
 
 @router.post("/query")
@@ -47,13 +102,13 @@ async def query_codebase_sync(request: QueryRequest) -> QueryResponse:
     return QueryResponse(answer=answer, chunks=chunks)
 
 
+@router.get("/file")
+async def get_file_by_query(path: str = Query(..., alias="path")):
+    """Return full file content using query param to avoid path encoding issues."""
+    return _read_file_response(path)
+
+
 @router.get("/file/{file_path:path}")
 async def get_file(file_path: str):
     """Return full file content for drill-down view."""
-    base_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "lapack")
-    full_path = os.path.join(base_dir, file_path)
-    if not os.path.isfile(full_path):
-        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
-    with open(full_path, "r", errors="replace") as f:
-        content = f.read()
-    return {"file_path": file_path, "content": content}
+    return _read_file_response(file_path)

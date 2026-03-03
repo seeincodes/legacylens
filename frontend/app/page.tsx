@@ -24,13 +24,17 @@ export default function Home() {
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [queryError, setQueryError] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
   const [expandSearch, setExpandSearch] = useState(false);
   const [routineType, setRoutineType] = useState("");
   const [precisionType, setPrecisionType] = useState("");
 
   const handleQuery = async (query: string) => {
+    setHasSearched(true);
     setIsLoading(true);
     setIsStreaming(true);
+    setQueryError("");
     setAnswer("");
     setChunks([]);
 
@@ -46,6 +50,11 @@ export default function Home() {
           precision_type: precisionType || null,
         }),
       });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const detail = data?.detail || `Request failed (${response.status})`;
+        throw new Error(detail);
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -82,7 +91,13 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Query failed:", error);
-      setAnswer("Could not reach the backend. Is the server running?");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not reach the backend. Is the server running?";
+      setQueryError(message);
+      setAnswer("");
+      setChunks([]);
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
@@ -130,7 +145,12 @@ export default function Home() {
           disabled={isLoading}
         />
         <AnswerPanel answer={answer} isStreaming={isStreaming} />
-        <ResultsList chunks={chunks} />
+        <ResultsList
+          chunks={chunks}
+          isLoading={isLoading}
+          error={queryError}
+          hasSearched={hasSearched}
+        />
       </div>
 
       {/* Footer */}

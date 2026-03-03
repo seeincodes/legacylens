@@ -22,13 +22,13 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, isLoading
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <div className="math-card p-5">
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ask about LAPACK... e.g. &quot;What does DGESV do?&quot;"
-            className="flex-1 px-4 py-2.5 text-lg rounded-lg border-2 transition-all"
+            className="flex-1 px-4 py-2.5 text-base sm:text-lg rounded-lg border-2 transition-all"
             style={{
               fontFamily: "var(--font-architects-daughter)",
               color: "var(--ink)",
@@ -41,7 +41,7 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, isLoading
           <button
             type="submit"
             disabled={isLoading || !query.trim()}
-            className="px-6 py-2.5 text-base rounded-lg font-bold transition-all duration-200 shrink-0"
+            className="px-6 py-2.5 text-base rounded-lg font-bold transition-all duration-200 shrink-0 sm:w-auto w-full"
             style={{
               fontFamily: "var(--font-architects-daughter)",
               background:
