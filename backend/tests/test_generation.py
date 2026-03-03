@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.generation import build_context
+from app.services.generation import build_context, validate_references
 from app.models.schemas import ChunkResult
 
 
@@ -31,3 +31,32 @@ def test_build_context_multiple_chunks():
     ctx = build_context(chunks)
     assert "Result 1" in ctx
     assert "Result 2" in ctx
+
+
+def test_validate_references_keeps_valid_refs():
+    chunks = [
+        ChunkResult(file_path="SRC/dgesv.f", line_start=1, line_end=50,
+                     subroutine_name="DGESV", routine_type="driver",
+                     content="code", relevance_score=0.9),
+    ]
+    answer = "The routine is in [SRC/dgesv.f:1-50] and solves linear systems."
+    result = validate_references(answer, chunks)
+    assert "[SRC/dgesv.f:1-50]" in result
+
+
+def test_validate_references_flags_invalid_refs():
+    chunks = [
+        ChunkResult(file_path="SRC/dgesv.f", line_start=1, line_end=50,
+                     subroutine_name="DGESV", routine_type="driver",
+                     content="code", relevance_score=0.9),
+    ]
+    answer = "See [SRC/fake_file.f:99-100] for details."
+    result = validate_references(answer, chunks)
+    assert "[SRC/fake_file.f:99-100]" not in result or "(unverified)" in result
+
+
+def test_validate_references_no_refs():
+    chunks = []
+    answer = "This answer has no file references."
+    result = validate_references(answer, chunks)
+    assert result == answer
