@@ -82,10 +82,14 @@ def extract_description(content: str) -> str:
             if cleaned:
                 lines.append(cleaned)
         if lines:
-            # Take up to the first 2 sentences (join lines, split on period)
             text = " ".join(lines)
+            # Remove stray Doxygen markers
+            text = text.replace("\\endverbatim", "").replace("\\verbatim", "")
             # Collapse whitespace
             text = re.sub(r'\s+', ' ', text).strip()
+            # Truncate to first 200 chars at a word boundary
+            if len(text) > 200:
+                text = text[:200].rsplit(' ', 1)[0]
             return text
 
     return ""
