@@ -211,8 +211,10 @@ def keyword_search(
     with get_connection() as conn:
         cur = conn.cursor()
 
-        conditions = ["fts @@ plainto_tsquery('english', %s)"]
-        params: list[str] = [query]
+        conditions = [
+            "(fts @@ plainto_tsquery('english', %s) OR UPPER(subroutine_name) = UPPER(%s))"
+        ]
+        params: list = [query, query]
         if routine_type:
             conditions.append("routine_type = %s")
             params.append(routine_type)
@@ -222,10 +224,13 @@ def keyword_search(
 
         where = " AND ".join(conditions)
         sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
-                         routine_type, content, metadata, ts_rank(fts, plainto_tsquery('english', %s)) AS score
+                         routine_type, content, metadata,
+                         CASE WHEN UPPER(subroutine_name) = UPPER(%s) THEN 10.0
+                              ELSE ts_rank(fts, plainto_tsquery('english', %s))
+                         END AS score
                   FROM code_chunks WHERE {where}
                   ORDER BY score DESC LIMIT %s"""
-        cur.execute(sql, [query, *params, top_k])
+        cur.execute(sql, [query, query, *params, top_k])
 
         rows = cur.fetchall()
         cur.close()

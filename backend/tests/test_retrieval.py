@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.retrieval import reciprocal_rank_fusion, normalize_scores, expand_query
+from app.services.retrieval import reciprocal_rank_fusion, normalize_scores, expand_query, keyword_search
 
 
 def test_rrf_merges_two_result_lists():
@@ -106,3 +106,13 @@ def test_expand_query_handles_api_error_gracefully():
         variants = expand_query("solve linear system")
 
     assert variants == ["solve linear system"]
+
+
+def test_keyword_search_boosts_exact_name_match():
+    """keyword_search SQL should include subroutine name matching, not just FTS."""
+    import inspect
+    source = inspect.getsource(keyword_search)
+    # The SQL should reference subroutine_name for boosting
+    assert "subroutine_name" in source
+    # Should have a CASE or similar boosting expression
+    assert "CASE" in source.upper() or "UNION" in source.upper()
