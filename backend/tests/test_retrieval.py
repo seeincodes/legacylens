@@ -1,8 +1,10 @@
 # backend/tests/test_retrieval.py
 import sys, os
+from unittest.mock import MagicMock, patch
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.retrieval import reciprocal_rank_fusion, normalize_scores
+from app.services.retrieval import reciprocal_rank_fusion, normalize_scores, expand_query
 
 
 def test_rrf_merges_two_result_lists():
@@ -77,3 +79,30 @@ def test_normalize_scores_adds_relevance_label():
     assert normalized[0]["relevance_label"] == "High"
     assert normalized[1]["relevance_label"] == "Medium"
     assert normalized[2]["relevance_label"] == "Low"
+
+
+def test_expand_query_returns_original_plus_variants():
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(type="text", text="LU factorization solver\nAx=b linear system computation")]
+
+    with patch("app.services.retrieval.anthropic") as mock_anthropic:
+        mock_client = MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+        mock_client.messages.create.return_value = mock_response
+
+        variants = expand_query("solve linear system")
+
+    assert "solve linear system" in variants
+    assert len(variants) >= 2
+    assert len(variants) <= 4
+
+
+def test_expand_query_handles_api_error_gracefully():
+    with patch("app.services.retrieval.anthropic") as mock_anthropic:
+        mock_client = MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+        mock_client.messages.create.side_effect = Exception("API error")
+
+        variants = expand_query("solve linear system")
+
+    assert variants == ["solve linear system"]

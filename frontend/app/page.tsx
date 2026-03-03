@@ -4,6 +4,7 @@ import { useState } from "react";
 import QueryInput from "@/components/QueryInput";
 import AnswerPanel from "@/components/AnswerPanel";
 import ResultsList from "@/components/ResultsList";
+import SearchFilters from "@/components/SearchFilters";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -15,6 +16,7 @@ interface Chunk {
   routine_type: string | null;
   content: string;
   relevance_score: number;
+  relevance_label: string;
 }
 
 export default function Home() {
@@ -22,6 +24,9 @@ export default function Home() {
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [expandSearch, setExpandSearch] = useState(false);
+  const [routineType, setRoutineType] = useState("");
+  const [precisionType, setPrecisionType] = useState("");
 
   const handleQuery = async (query: string) => {
     setIsLoading(true);
@@ -33,7 +38,13 @@ export default function Home() {
       const response = await fetch(`${API_URL}/api/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, top_k: 5 }),
+        body: JSON.stringify({
+          query,
+          top_k: 5,
+          expand: expandSearch,
+          routine_type: routineType || null,
+          precision_type: precisionType || null,
+        }),
       });
 
       const reader = response.body?.getReader();
@@ -105,7 +116,19 @@ export default function Home() {
 
       {/* Query + Results */}
       <div className="w-full max-w-3xl flex flex-col gap-5">
-        <QueryInput onSubmit={handleQuery} isLoading={isLoading} />
+        <QueryInput
+          onSubmit={handleQuery}
+          isLoading={isLoading}
+          expand={expandSearch}
+          onExpandChange={setExpandSearch}
+        />
+        <SearchFilters
+          routineType={routineType}
+          precisionType={precisionType}
+          onRoutineTypeChange={setRoutineType}
+          onPrecisionTypeChange={setPrecisionType}
+          disabled={isLoading}
+        />
         <AnswerPanel answer={answer} isStreaming={isStreaming} />
         <ResultsList chunks={chunks} />
       </div>

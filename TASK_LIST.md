@@ -64,10 +64,10 @@
 - [ ] Documentation Generation: generate docs for undocumented sections
 
 ### 9. Search Improvements
-- [ ] Implement hybrid search (vector + BM25/tsvector with RRF fusion)
-- [ ] Add confidence/relevance scores to results
-- [ ] Implement query expansion (LLM rephrases to multiple variants)
-- [ ] Add metadata filters in UI (filter by routine type, precision)
+- [x] Implement hybrid search (vector + BM25/tsvector with RRF fusion)
+- [x] Add confidence/relevance scores to results
+- [x] Implement query expansion (LLM rephrases to multiple variants)
+- [x] Add metadata filters in UI (filter by routine type, precision)
 
 ### 10. UI Polish
 - [ ] Add syntax highlighting for Fortran code

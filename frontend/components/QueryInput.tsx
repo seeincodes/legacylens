@@ -4,10 +4,12 @@ import { useState } from "react";
 
 interface QueryInputProps {
   onSubmit: (query: string) => void;
+  expand: boolean;
+  onExpandChange: (enabled: boolean) => void;
   isLoading: boolean;
 }
 
-export default function QueryInput({ onSubmit, isLoading }: QueryInputProps) {
+export default function QueryInput({ onSubmit, expand, onExpandChange, isLoading }: QueryInputProps) {
   const [query, setQuery] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -93,6 +95,26 @@ export default function QueryInput({ onSubmit, isLoading }: QueryInputProps) {
               {example}
             </button>
           ))}
+        </div>
+
+        <div className="mt-4 pt-3 flex items-center justify-end" style={{ borderTop: "1px dashed var(--paper-grid)" }}>
+          <label
+            className="inline-flex items-center gap-2 text-sm cursor-pointer"
+            style={{
+              fontFamily: "var(--font-jetbrains-mono)",
+              color: "var(--ink-light)",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={expand}
+              onChange={(e) => onExpandChange(e.target.checked)}
+              disabled={isLoading}
+              className="w-4 h-4 rounded"
+              style={{ accentColor: "var(--chalk-blue)" }}
+            />
+            Expand search
+          </label>
         </div>
       </div>
     </form>

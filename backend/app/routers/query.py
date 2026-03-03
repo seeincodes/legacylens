@@ -18,6 +18,8 @@ async def query_codebase(request: QueryRequest):
         query=request.query,
         top_k=request.top_k,
         routine_type=request.routine_type,
+        precision_type=request.precision_type,
+        expand=request.expand,
     )
 
     async def event_stream():
@@ -38,6 +40,8 @@ async def query_codebase_sync(request: QueryRequest) -> QueryResponse:
         query=request.query,
         top_k=request.top_k,
         routine_type=request.routine_type,
+        precision_type=request.precision_type,
+        expand=request.expand,
     )
     answer = generate_answer(request.query, chunks)
     return QueryResponse(answer=answer, chunks=chunks)

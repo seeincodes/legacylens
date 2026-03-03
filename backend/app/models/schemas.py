@@ -5,6 +5,8 @@ class QueryRequest(BaseModel):
     query: str
     top_k: int = 5
     routine_type: str | None = None
+    precision_type: str | None = None
+    expand: bool = False
 
 
 class ChunkResult(BaseModel):

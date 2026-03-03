@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import CodeBlock from "./CodeBlock";
 
 interface Chunk {
@@ -8,6 +11,7 @@ interface Chunk {
   routine_type: string | null;
   content: string;
   relevance_score: number;
+  relevance_label: string;
 }
 
 interface ResultsListProps {
@@ -21,11 +25,17 @@ const TYPE_STYLES: Record<string, { color: string; bg: string }> = {
 };
 
 export default function ResultsList({ chunks }: ResultsListProps) {
+  const [expandedChunks, setExpandedChunks] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setExpandedChunks({});
+  }, [chunks]);
+
   if (chunks.length === 0) return null;
 
   return (
     <div className="w-full space-y-4 fade-in-up">
-      {/* Simple section header */}
+      {/* Section header */}
       <div className="flex items-center gap-3">
         <h2
           className="text-lg font-bold"
@@ -52,6 +62,8 @@ export default function ResultsList({ chunks }: ResultsListProps) {
       </div>
 
       {chunks.map((chunk, i) => {
+        const chunkKey = `${chunk.file_path}:${chunk.line_start}-${chunk.line_end}:${i}`;
+        const isExpanded = !!expandedChunks[chunkKey];
         const typeStyle = TYPE_STYLES[chunk.routine_type || ""] || {
           color: "var(--ink-light)",
           bg: "var(--paper-dark)",
@@ -111,8 +123,28 @@ export default function ResultsList({ chunks }: ResultsListProps) {
                 )}
               </div>
 
-              {/* Relevance score */}
+              {/* Relevance score with label + per-card toggle */}
               <div className="flex items-center gap-2">
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{
+                    fontFamily: "var(--font-jetbrains-mono)",
+                    color:
+                      chunk.relevance_label === "High"
+                        ? "var(--chalk-green)"
+                        : chunk.relevance_label === "Medium"
+                          ? "var(--chalk-amber)"
+                          : "var(--chalk-pink)",
+                    background:
+                      chunk.relevance_label === "High"
+                        ? "var(--chalk-green-light)"
+                        : chunk.relevance_label === "Medium"
+                          ? "var(--chalk-amber-light)"
+                          : "var(--chalk-pink-light)",
+                  }}
+                >
+                  {chunk.relevance_label}
+                </span>
                 <div
                   className="w-16 h-1.5 rounded-full overflow-hidden"
                   style={{ background: "var(--paper-dark)" }}
@@ -139,15 +171,45 @@ export default function ResultsList({ chunks }: ResultsListProps) {
                 >
                   {(chunk.relevance_score * 100).toFixed(0)}%
                 </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedChunks((prev) => ({
+                      ...prev,
+                      [chunkKey]: !prev[chunkKey],
+                    }))
+                  }
+                  className="text-xs px-2 py-0.5 rounded-full border transition-colors"
+                  style={{
+                    fontFamily: "var(--font-jetbrains-mono)",
+                    color: "var(--chalk-blue)",
+                    borderColor: "var(--chalk-blue)",
+                    background: "var(--chalk-blue-light)",
+                  }}
+                >
+                  {isExpanded ? "Hide code" : "Show code"}
+                </button>
               </div>
             </div>
 
-            <CodeBlock
-              code={chunk.content}
-              filePath={chunk.file_path}
-              lineStart={chunk.line_start}
-              lineEnd={chunk.line_end}
-            />
+            {isExpanded ? (
+              <CodeBlock
+                code={chunk.content}
+                filePath={chunk.file_path}
+                lineStart={chunk.line_start}
+                lineEnd={chunk.line_end}
+              />
+            ) : (
+              <div
+                className="px-5 py-3 text-sm"
+                style={{
+                  fontFamily: "var(--font-crimson-pro)",
+                  color: "var(--ink-light)",
+                }}
+              >
+                Code snippet collapsed.
+              </div>
+            )}
           </div>
         );
       })}

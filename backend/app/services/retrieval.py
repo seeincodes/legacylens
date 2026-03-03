@@ -1,9 +1,10 @@
-import openai
-import psycopg2
-from pgvector.psycopg2 import register_vector
-
 from app.config import settings
 from app.models.schemas import ChunkResult
+
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
 
 
 def reciprocal_rank_fusion(
@@ -44,31 +45,85 @@ def normalize_scores(merged: list[dict]) -> list[dict]:
 
 
 def embed_query(query: str) -> list[float]:
+    import openai
+
     client = openai.OpenAI(api_key=settings.openai_api_key)
     response = client.embeddings.create(model="text-embedding-3-small", input=query)
     return response.data[0].embedding
 
 
-def vector_search(embedding: list[float], top_k: int = 10, routine_type: str | None = None) -> list[dict]:
+def expand_query(query: str) -> list[str]:
+    if anthropic is None:
+        return [query]
+
+    try:
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{
+                "role": "user",
+                "content": (
+                    "Rephrase this LAPACK/linear algebra search query into 2-3 "
+                    "alternative search variants. Return ONLY the variants, one per "
+                    "line, with no numbering or bullets.\n\n"
+                    f"Query: {query}"
+                ),
+            }],
+        )
+
+        text_blocks = [
+            block.text.strip()
+            for block in response.content
+            if getattr(block, "type", "") == "text" and getattr(block, "text", "").strip()
+        ]
+        variants = []
+        for block in text_blocks:
+            for line in block.splitlines():
+                candidate = line.strip()
+                if candidate:
+                    variants.append(candidate)
+
+        # Keep original first, add up to 3 unique variants.
+        merged = [query]
+        for variant in variants:
+            if variant not in merged:
+                merged.append(variant)
+            if len(merged) >= 4:
+                break
+        return merged
+    except Exception:
+        return [query]
+
+
+def vector_search(
+    embedding: list[float],
+    top_k: int = 10,
+    routine_type: str | None = None,
+    precision_type: str | None = None,
+) -> list[dict]:
+    import psycopg2
+    from pgvector.psycopg2 import register_vector
+
     conn = psycopg2.connect(settings.database_url)
     register_vector(conn)
     cur = conn.cursor()
 
+    conditions = []
+    params: list[str] = []
     if routine_type:
-        cur.execute(
-            """SELECT id, file_path, line_start, line_end, subroutine_name,
-                      routine_type, content, metadata, 1 - (embedding <=> %s::vector) AS score
-               FROM code_chunks WHERE routine_type = %s
-               ORDER BY embedding <=> %s::vector LIMIT %s""",
-            (embedding, routine_type, embedding, top_k),
-        )
-    else:
-        cur.execute(
-            """SELECT id, file_path, line_start, line_end, subroutine_name,
-                      routine_type, content, metadata, 1 - (embedding <=> %s::vector) AS score
-               FROM code_chunks ORDER BY embedding <=> %s::vector LIMIT %s""",
-            (embedding, embedding, top_k),
-        )
+        conditions.append("routine_type = %s")
+        params.append(routine_type)
+    if precision_type:
+        conditions.append("precision_type = %s")
+        params.append(precision_type)
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
+                     routine_type, content, metadata, 1 - (embedding <=> %s::vector) AS score
+              FROM code_chunks {where}
+              ORDER BY embedding <=> %s::vector LIMIT %s"""
+    cur.execute(sql, [embedding, *params, embedding, top_k])
 
     rows = cur.fetchall()
     cur.close()
@@ -82,17 +137,32 @@ def vector_search(embedding: list[float], top_k: int = 10, routine_type: str | N
     ]
 
 
-def keyword_search(query: str, top_k: int = 10) -> list[dict]:
+def keyword_search(
+    query: str,
+    top_k: int = 10,
+    routine_type: str | None = None,
+    precision_type: str | None = None,
+) -> list[dict]:
+    import psycopg2
+
     conn = psycopg2.connect(settings.database_url)
     cur = conn.cursor()
 
-    cur.execute(
-        """SELECT id, file_path, line_start, line_end, subroutine_name,
-                  routine_type, content, metadata, ts_rank(fts, plainto_tsquery('english', %s)) AS score
-           FROM code_chunks WHERE fts @@ plainto_tsquery('english', %s)
-           ORDER BY score DESC LIMIT %s""",
-        (query, query, top_k),
-    )
+    conditions = ["fts @@ plainto_tsquery('english', %s)"]
+    params: list[str] = [query]
+    if routine_type:
+        conditions.append("routine_type = %s")
+        params.append(routine_type)
+    if precision_type:
+        conditions.append("precision_type = %s")
+        params.append(precision_type)
+
+    where = " AND ".join(conditions)
+    sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
+                     routine_type, content, metadata, ts_rank(fts, plainto_tsquery('english', %s)) AS score
+              FROM code_chunks WHERE {where}
+              ORDER BY score DESC LIMIT %s"""
+    cur.execute(sql, [query, *params, top_k])
 
     rows = cur.fetchall()
     cur.close()
@@ -106,10 +176,33 @@ def keyword_search(query: str, top_k: int = 10) -> list[dict]:
     ]
 
 
-def search(query: str, top_k: int = 5, routine_type: str | None = None) -> list[ChunkResult]:
-    query_embedding = embed_query(query)
-    vector_results = vector_search(query_embedding, top_k=10, routine_type=routine_type)
-    kw_results = keyword_search(query, top_k=10)
+def search(
+    query: str,
+    top_k: int = 5,
+    routine_type: str | None = None,
+    precision_type: str | None = None,
+    expand: bool = False,
+) -> list[ChunkResult]:
+    queries = expand_query(query) if expand else [query]
+
+    vector_results = []
+    for query_variant in queries:
+        query_embedding = embed_query(query_variant)
+        vector_results.extend(
+            vector_search(
+                query_embedding,
+                top_k=10,
+                routine_type=routine_type,
+                precision_type=precision_type,
+            )
+        )
+
+    kw_results = keyword_search(
+        query,
+        top_k=10,
+        routine_type=routine_type,
+        precision_type=precision_type,
+    )
     merged = reciprocal_rank_fusion(vector_results, kw_results)
     merged = normalize_scores(merged)
 

@@ -116,3 +116,83 @@ input[type="text"]:focus {
   text-transform: uppercase;
   font-family: var(--font-jetbrains-mono);
 }
+
+/* ===== ANSWER MARKDOWN ===== */
+.answer-markdown h1,
+.answer-markdown h2,
+.answer-markdown h3,
+.answer-markdown h4 {
+  font-family: var(--font-architects-daughter);
+  color: var(--ink);
+  margin: 0.9rem 0 0.45rem;
+}
+
+.answer-markdown h1 { font-size: 1.45rem; }
+.answer-markdown h2 { font-size: 1.3rem; }
+.answer-markdown h3 { font-size: 1.15rem; }
+.answer-markdown h4 { font-size: 1.05rem; }
+
+.answer-markdown p {
+  margin: 0.6rem 0;
+  color: var(--ink);
+}
+
+.answer-markdown ul,
+.answer-markdown ol {
+  margin: 0.5rem 0 0.75rem 1.25rem;
+  color: var(--ink);
+}
+
+.answer-markdown li {
+  margin: 0.25rem 0;
+  padding-left: 0.15rem;
+}
+
+.answer-markdown blockquote {
+  margin: 0.7rem 0;
+  padding: 0.45rem 0.8rem;
+  border-left: 3px solid var(--chalk-blue);
+  background: var(--chalk-blue-light);
+  color: var(--ink-light);
+}
+
+.answer-markdown code {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.88em;
+  background: var(--paper-dark);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 0.08rem 0.35rem;
+}
+
+.answer-markdown .answer-codeblock {
+  margin: 0.8rem 0;
+  border: 1px solid var(--code-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.answer-markdown .answer-code-lang {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 0.6rem;
+  color: var(--paper-grid);
+  background: #141420;
+  border-bottom: 1px solid var(--code-line);
+}
+
+.answer-markdown .answer-codeblock pre {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  overflow-x: auto;
+  background: var(--code-bg);
+  color: var(--code-text);
+}
+
+.answer-markdown .answer-codeblock pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
