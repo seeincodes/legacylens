@@ -73,34 +73,50 @@ def _read_file_response(file_path: str) -> dict:
 @router.post("/query")
 async def query_codebase(request: QueryRequest):
     """Main query endpoint -- retrieves code and streams LLM answer."""
+    query = request.query.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    if len(query) > 2000:
+        raise HTTPException(status_code=400, detail="Query too long (max 2000 characters)")
+
     t_start = time.perf_counter()
-    chunks = search(
-        query=request.query,
-        top_k=request.top_k,
-        routine_type=request.routine_type,
-        precision_type=request.precision_type,
-        expand=request.expand,
-    )
+    try:
+        chunks = search(
+            query=query,
+            top_k=request.top_k,
+            routine_type=request.routine_type,
+            precision_type=request.precision_type,
+            expand=request.expand,
+        )
+    except Exception as exc:
+        logger.error("retrieval failed for query=%r: %s", query[:80], exc)
+        raise HTTPException(status_code=502, detail="Search service temporarily unavailable")
     retrieval_ms = (time.perf_counter() - t_start) * 1000
     routines = [c.subroutine_name for c in chunks if c.subroutine_name]
     logger.info(
         "query=%r retrieval_ms=%.0f top_k=%d expand=%s results=%d routines=%s",
-        request.query, retrieval_ms, request.top_k, request.expand, len(chunks), routines,
+        query, retrieval_ms, request.top_k, request.expand, len(chunks), routines,
     )
 
     async def event_stream():
         yield f"data: {json.dumps({'type': 'chunks', 'chunks': [c.model_dump() for c in chunks]})}\n\n"
         t_gen = time.perf_counter()
         full_answer = ""
-        async for token in stream_answer(request.query, chunks):
-            full_answer += token
-            yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
+        try:
+            async for token in stream_answer(query, chunks):
+                full_answer += token
+                yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
+        except Exception as exc:
+            logger.error("generation failed for query=%r: %s", query[:80], exc)
+            error_msg = "Answer generation is temporarily unavailable. Results are shown above."
+            yield f"data: {json.dumps({'type': 'token', 'token': error_msg})}\n\n"
+            full_answer = error_msg
         generation_ms = (time.perf_counter() - t_gen) * 1000
         total_ms = (time.perf_counter() - t_start) * 1000
         yield f"data: {json.dumps({'type': 'done', 'answer': full_answer})}\n\n"
         logger.info(
             "query=%r generation_ms=%.0f total_ms=%.0f",
-            request.query, generation_ms, total_ms,
+            query, generation_ms, total_ms,
         )
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
@@ -109,14 +125,30 @@ async def query_codebase(request: QueryRequest):
 @router.post("/query/sync")
 async def query_codebase_sync(request: QueryRequest) -> QueryResponse:
     """Non-streaming version for testing."""
-    chunks = search(
-        query=request.query,
-        top_k=request.top_k,
-        routine_type=request.routine_type,
-        precision_type=request.precision_type,
-        expand=request.expand,
-    )
-    answer = generate_answer(request.query, chunks)
+    query = request.query.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    if len(query) > 2000:
+        raise HTTPException(status_code=400, detail="Query too long (max 2000 characters)")
+
+    try:
+        chunks = search(
+            query=query,
+            top_k=request.top_k,
+            routine_type=request.routine_type,
+            precision_type=request.precision_type,
+            expand=request.expand,
+        )
+    except Exception as exc:
+        logger.error("retrieval failed for query=%r: %s", query[:80], exc)
+        raise HTTPException(status_code=502, detail="Search service temporarily unavailable")
+
+    try:
+        answer = generate_answer(query, chunks)
+    except Exception as exc:
+        logger.error("generation failed for query=%r: %s", query[:80], exc)
+        answer = "Answer generation is temporarily unavailable. Results are shown above."
+
     return QueryResponse(answer=answer, chunks=chunks)
 
 

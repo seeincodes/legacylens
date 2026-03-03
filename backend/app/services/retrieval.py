@@ -1,3 +1,8 @@
+import hashlib
+import logging
+import time
+from collections import OrderedDict
+
 from app.config import settings
 from app.models.schemas import ChunkResult
 
@@ -6,6 +11,35 @@ try:
 except ImportError:
     anthropic = None
 
+logger = logging.getLogger("legacylens.retrieval")
+
+# ── Embedding cache (LRU, max 256 entries) ──────────────
+
+_EMBEDDING_CACHE_MAX = 256
+_embedding_cache: OrderedDict[str, list[float]] = OrderedDict()
+
+
+def _cache_key(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def _get_cached_embedding(text: str) -> list[float] | None:
+    key = _cache_key(text)
+    if key in _embedding_cache:
+        _embedding_cache.move_to_end(key)
+        return _embedding_cache[key]
+    return None
+
+
+def _put_cached_embedding(text: str, embedding: list[float]) -> None:
+    key = _cache_key(text)
+    _embedding_cache[key] = embedding
+    _embedding_cache.move_to_end(key)
+    while len(_embedding_cache) > _EMBEDDING_CACHE_MAX:
+        _embedding_cache.popitem(last=False)
+
+
+# ── Core functions ───────────────────────────────────────
 
 def reciprocal_rank_fusion(
     vector_results: list[dict],
@@ -45,11 +79,18 @@ def normalize_scores(merged: list[dict]) -> list[dict]:
 
 
 def embed_query(query: str) -> list[float]:
+    cached = _get_cached_embedding(query)
+    if cached is not None:
+        logger.debug("embedding cache hit for query=%r", query[:50])
+        return cached
+
     import openai
 
     client = openai.OpenAI(api_key=settings.openai_api_key)
     response = client.embeddings.create(model="text-embedding-3-small", input=query)
-    return response.data[0].embedding
+    embedding = response.data[0].embedding
+    _put_cached_embedding(query, embedding)
+    return embedding
 
 
 def expand_query(query: str) -> list[str]:
@@ -92,7 +133,8 @@ def expand_query(query: str) -> list[str]:
             if len(merged) >= 4:
                 break
         return merged
-    except Exception:
+    except Exception as exc:
+        logger.warning("query expansion failed, using original query: %s", exc)
         return [query]
 
 
@@ -183,7 +225,9 @@ def search(
     precision_type: str | None = None,
     expand: bool = False,
 ) -> list[ChunkResult]:
+    t0 = time.perf_counter()
     queries = expand_query(query) if expand else [query]
+    t_expand = time.perf_counter()
 
     vector_results = []
     for query_variant in queries:
@@ -196,6 +240,7 @@ def search(
                 precision_type=precision_type,
             )
         )
+    t_vector = time.perf_counter()
 
     kw_results = keyword_search(
         query,
@@ -203,8 +248,23 @@ def search(
         routine_type=routine_type,
         precision_type=precision_type,
     )
+    t_keyword = time.perf_counter()
+
     merged = reciprocal_rank_fusion(vector_results, kw_results)
     merged = normalize_scores(merged)
+
+    logger.info(
+        "search query=%r expand_ms=%.0f vector_ms=%.0f keyword_ms=%.0f total_ms=%.0f "
+        "vector_hits=%d keyword_hits=%d merged=%d",
+        query[:80],
+        (t_expand - t0) * 1000,
+        (t_vector - t_expand) * 1000,
+        (t_keyword - t_vector) * 1000,
+        (t_keyword - t0) * 1000,
+        len(vector_results),
+        len(kw_results),
+        len(merged),
+    )
 
     results = []
     for r in merged[:top_k]:

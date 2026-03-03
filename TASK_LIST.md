@@ -107,7 +107,7 @@
 
 ### 13. Performance & Reliability
 
-- [ ] Add query caching (LRU for embeddings, TTL for LLM responses)
-- [ ] Add structured logging (query, results, latency breakdown)
-- [ ] Test edge cases (empty queries, very long queries, nonsense input)
-- [ ] Ensure graceful degradation if APIs are down
+- [x] Add query caching (LRU for embeddings, TTL for LLM responses)
+- [x] Add structured logging (query, results, latency breakdown)
+- [x] Test edge cases (empty queries, very long queries, nonsense input)
+- [x] Ensure graceful degradation if APIs are down
