@@ -5,7 +5,6 @@ import QueryInput from "@/components/QueryInput";
 import AnswerPanel from "@/components/AnswerPanel";
 import ResultsList from "@/components/ResultsList";
 import SearchFilters from "@/components/SearchFilters";
-import UnderstandPanel from "@/components/UnderstandPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -30,11 +29,6 @@ export default function Home() {
   const [expandSearch, setExpandSearch] = useState(false);
   const [routineType, setRoutineType] = useState("");
   const [precisionType, setPrecisionType] = useState("");
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisType, setAnalysisType] = useState("");
-  const [dataUsageInput, setDataUsageInput] = useState("");
-  const [showDataUsageInput, setShowDataUsageInput] = useState(false);
 
   const handleQuery = async (query: string) => {
     setHasSearched(true);
@@ -43,8 +37,6 @@ export default function Home() {
     setQueryError("");
     setAnswer("");
     setChunks([]);
-    setAnalysisResult(null);
-    setAnalysisType("");
 
     try {
       const response = await fetch(`${API_URL}/api/query`, {
@@ -94,9 +86,6 @@ export default function Home() {
             setAnswer((prev) => prev + data.token);
           } else if (data.type === "done") {
             setIsStreaming(false);
-          } else if (data.type === "analysis") {
-            setAnalysisResult(data);
-            setAnalysisType(data.analysis_type);
           }
         }
       }
@@ -112,38 +101,6 @@ export default function Home() {
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
-    }
-  };
-
-  const handleAnalysis = async (type: string, variableName?: string) => {
-    setAnalysisLoading(true);
-    setAnalysisType(type);
-    setAnalysisResult(null);
-
-    const endpointMap: Record<string, string> = {
-      entry_points: "/api/understand/entry-points",
-      data_usage: "/api/understand/data-usage",
-      io_operations: "/api/understand/io-operations",
-      error_patterns: "/api/understand/error-patterns",
-    };
-
-    try {
-      const body: any = {};
-      if (type === "data_usage" && variableName) {
-        body.variable_name = variableName;
-      }
-      const response = await fetch(`${API_URL}${endpointMap[type]}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) throw new Error(`Request failed (${response.status})`);
-      const data = await response.json();
-      setAnalysisResult(data);
-    } catch (err) {
-      console.error("Analysis failed:", err);
-    } finally {
-      setAnalysisLoading(false);
     }
   };
 
@@ -187,136 +144,6 @@ export default function Home() {
           onPrecisionTypeChange={setPrecisionType}
           disabled={isLoading}
         />
-        {/* Quick Analysis */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span
-              className="text-sm font-bold"
-              style={{
-                fontFamily: "var(--font-architects-daughter)",
-                color: "var(--ink-light)",
-              }}
-            >
-              Quick Analysis:
-            </span>
-            <button
-              className="text-xs px-3 py-1.5 rounded-full border transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{
-                fontFamily: "var(--font-architects-daughter)",
-                color: "var(--chalk-pink)",
-                borderColor: "var(--chalk-pink)",
-                background: "var(--chalk-pink-light)",
-              }}
-              disabled={analysisLoading}
-              onClick={() => handleAnalysis("entry_points")}
-            >
-              Entry Points
-            </button>
-            <button
-              className="text-xs px-3 py-1.5 rounded-full border transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{
-                fontFamily: "var(--font-architects-daughter)",
-                color: "var(--chalk-purple)",
-                borderColor: "var(--chalk-purple)",
-                background: "var(--chalk-purple-light)",
-              }}
-              disabled={analysisLoading}
-              onClick={() => setShowDataUsageInput((prev) => !prev)}
-            >
-              Data Usage
-            </button>
-            <button
-              className="text-xs px-3 py-1.5 rounded-full border transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{
-                fontFamily: "var(--font-architects-daughter)",
-                color: "var(--chalk-blue)",
-                borderColor: "var(--chalk-blue)",
-                background: "var(--chalk-blue-light)",
-              }}
-              disabled={analysisLoading}
-              onClick={() => handleAnalysis("io_operations")}
-            >
-              I/O Operations
-            </button>
-            <button
-              className="text-xs px-3 py-1.5 rounded-full border transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{
-                fontFamily: "var(--font-architects-daughter)",
-                color: "var(--chalk-amber)",
-                borderColor: "var(--chalk-amber)",
-                background: "var(--chalk-amber-light)",
-              }}
-              disabled={analysisLoading}
-              onClick={() => handleAnalysis("error_patterns")}
-            >
-              Error Patterns
-            </button>
-          </div>
-          {showDataUsageInput && (
-            <div className="flex items-center gap-2 ml-0 sm:ml-[108px]">
-              <input
-                type="text"
-                placeholder="Variable name (e.g. INFO, LDA)"
-                value={dataUsageInput}
-                onChange={(e) => setDataUsageInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && dataUsageInput.trim()) {
-                    handleAnalysis("data_usage", dataUsageInput.trim());
-                    setShowDataUsageInput(false);
-                  }
-                }}
-                className="text-xs px-3 py-1.5 rounded-full border outline-none"
-                style={{
-                  fontFamily: "var(--font-jetbrains-mono)",
-                  color: "var(--ink)",
-                  borderColor: "var(--chalk-purple)",
-                  background: "var(--paper)",
-                }}
-              />
-              <button
-                className="text-xs px-3 py-1.5 rounded-full border transition-opacity hover:opacity-80 disabled:opacity-40"
-                style={{
-                  fontFamily: "var(--font-architects-daughter)",
-                  color: "var(--chalk-purple)",
-                  borderColor: "var(--chalk-purple)",
-                  background: "var(--chalk-purple-light)",
-                }}
-                disabled={!dataUsageInput.trim() || analysisLoading}
-                onClick={() => {
-                  if (dataUsageInput.trim()) {
-                    handleAnalysis("data_usage", dataUsageInput.trim());
-                    setShowDataUsageInput(false);
-                  }
-                }}
-              >
-                Search
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Analysis Results */}
-        {(analysisLoading || analysisResult) && (
-          <div className="math-card overflow-hidden">
-            <div className="px-4 sm:px-5 py-3" style={{ borderBottom: "1px dashed var(--paper-grid)" }}>
-              <span className="text-sm font-bold" style={{
-                fontFamily: "var(--font-architects-daughter)",
-                color: "var(--ink)",
-              }}>
-                {analysisType === "entry_points" ? "Entry Points" :
-                 analysisType === "data_usage" ? "Data Usage" :
-                 analysisType === "io_operations" ? "I/O Operations" :
-                 analysisType === "error_patterns" ? "Error Patterns" : "Analysis"}
-              </span>
-            </div>
-            <UnderstandPanel
-              feature={analysisType as any}
-              result={analysisResult ? { feature: analysisType as any, data: analysisResult } : null!}
-              isLoading={analysisLoading}
-            />
-          </div>
-        )}
-
         <AnswerPanel answer={answer} isStreaming={isStreaming} />
         <ResultsList
           chunks={chunks}

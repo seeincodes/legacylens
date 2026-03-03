@@ -9,10 +9,7 @@ from fastapi.responses import StreamingResponse
 
 from app.models.schemas import QueryRequest, QueryResponse
 from app.services.retrieval import search
-from app.services.generation import generate_answer, stream_answer, classify_query
-from app.services.understanding import (
-    find_entry_points, find_data_usage, find_io_operations, find_error_patterns,
-)
+from app.services.generation import generate_answer, stream_answer
 
 logger = logging.getLogger("legacylens.query")
 
@@ -101,12 +98,6 @@ async def query_codebase(request: QueryRequest):
         query, retrieval_ms, request.top_k, request.expand, len(chunks), routines,
     )
 
-    query_type = "general"
-    try:
-        query_type = classify_query(query)
-    except Exception:
-        pass
-
     async def event_stream():
         yield f"data: {json.dumps({'type': 'chunks', 'chunks': [c.model_dump() for c in chunks]})}\n\n"
         t_gen = time.perf_counter()
@@ -124,28 +115,9 @@ async def query_codebase(request: QueryRequest):
         total_ms = (time.perf_counter() - t_start) * 1000
         yield f"data: {json.dumps({'type': 'done', 'answer': full_answer})}\n\n"
         logger.info(
-            "query=%r generation_ms=%.0f total_ms=%.0f query_type=%s",
-            query, generation_ms, total_ms, query_type,
+            "query=%r generation_ms=%.0f total_ms=%.0f",
+            query, generation_ms, total_ms,
         )
-
-        if query_type != "general":
-            try:
-                analysis_handlers = {
-                    "entry_points": lambda: find_entry_points(),
-                    "io_operations": lambda: find_io_operations(),
-                    "error_patterns": lambda: find_error_patterns(),
-                }
-                if query_type == "data_usage":
-                    analysis_result = find_data_usage(query)
-                elif query_type in analysis_handlers:
-                    analysis_result = analysis_handlers[query_type]()
-                else:
-                    analysis_result = None
-
-                if analysis_result:
-                    yield f"data: {json.dumps({'type': 'analysis', **analysis_result})}\n\n"
-            except Exception as exc:
-                logger.warning("analysis generation failed: %s", exc)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
