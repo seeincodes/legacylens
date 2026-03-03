@@ -29,6 +29,20 @@ def reciprocal_rank_fusion(
     return [{**id_to_data[rid], "rrf_score": scores[rid]} for rid in sorted_ids]
 
 
+def normalize_scores(merged: list[dict]) -> list[dict]:
+    if not merged:
+        return []
+    max_score = merged[0]["rrf_score"]
+    if max_score == 0:
+        return merged
+    result = []
+    for r in merged:
+        normalized = r["rrf_score"] / max_score
+        label = "High" if normalized > 0.7 else "Medium" if normalized > 0.4 else "Low"
+        result.append({**r, "rrf_score": normalized, "relevance_label": label})
+    return result
+
+
 def embed_query(query: str) -> list[float]:
     client = openai.OpenAI(api_key=settings.openai_api_key)
     response = client.embeddings.create(model="text-embedding-3-small", input=query)
@@ -97,6 +111,7 @@ def search(query: str, top_k: int = 5, routine_type: str | None = None) -> list[
     vector_results = vector_search(query_embedding, top_k=10, routine_type=routine_type)
     kw_results = keyword_search(query, top_k=10)
     merged = reciprocal_rank_fusion(vector_results, kw_results)
+    merged = normalize_scores(merged)
 
     results = []
     for r in merged[:top_k]:
@@ -107,6 +122,7 @@ def search(query: str, top_k: int = 5, routine_type: str | None = None) -> list[
                 file_path=r["file_path"], line_start=r["line_start"], line_end=r["line_end"],
                 subroutine_name=r.get("subroutine_name"), routine_type=r.get("routine_type"),
                 content=r["content"], relevance_score=round(r["rrf_score"], 4),
+                relevance_label=r.get("relevance_label", "Medium"),
                 calls=calls,
             )
         )

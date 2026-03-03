@@ -18,3 +18,5 @@ data/lapack/
 
 # OS
 .DS_Store
+
+docs/plans/

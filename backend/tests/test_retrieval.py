@@ -2,7 +2,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.retrieval import reciprocal_rank_fusion
+from app.services.retrieval import reciprocal_rank_fusion, normalize_scores
 
 
 def test_rrf_merges_two_result_lists():
@@ -43,3 +43,37 @@ def test_rrf_preserves_all_fields():
     assert merged[0]["file_path"] == "SRC/dgesv.f"
     assert merged[0]["content"] == "test"
     assert "rrf_score" in merged[0]
+
+
+def test_normalize_scores_best_result_is_one():
+    merged = [
+        {"id": 1, "rrf_score": 0.033},
+        {"id": 2, "rrf_score": 0.020},
+        {"id": 3, "rrf_score": 0.010},
+    ]
+    normalized = normalize_scores(merged)
+    assert normalized[0]["rrf_score"] == 1.0
+    assert abs(normalized[1]["rrf_score"] - 0.020 / 0.033) < 0.01
+    assert abs(normalized[2]["rrf_score"] - 0.010 / 0.033) < 0.01
+
+
+def test_normalize_scores_single_result():
+    merged = [{"id": 1, "rrf_score": 0.016}]
+    normalized = normalize_scores(merged)
+    assert normalized[0]["rrf_score"] == 1.0
+
+
+def test_normalize_scores_empty_list():
+    assert normalize_scores([]) == []
+
+
+def test_normalize_scores_adds_relevance_label():
+    merged = [
+        {"id": 1, "rrf_score": 0.033},
+        {"id": 2, "rrf_score": 0.020},
+        {"id": 3, "rrf_score": 0.005},
+    ]
+    normalized = normalize_scores(merged)
+    assert normalized[0]["relevance_label"] == "High"
+    assert normalized[1]["relevance_label"] == "Medium"
+    assert normalized[2]["relevance_label"] == "Low"

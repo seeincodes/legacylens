@@ -15,6 +15,7 @@ class ChunkResult(BaseModel):
     routine_type: str | None
     content: str
     relevance_score: float
+    relevance_label: str = "Medium"
     calls: list[str] | None = None
 
 
