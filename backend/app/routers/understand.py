@@ -2,12 +2,14 @@ from fastapi import APIRouter, HTTPException
 
 from app.models.understand_schemas import (
     ExplainRequest, ExplainResponse,
+    ELI5Request, ELI5Response,
     DependencyRequest, DependencyResponse,
     SimilarRequest, SimilarResponse,
     DocumentRequest, DocumentResponse,
 )
 from app.services.understanding import (
     explain_routine,
+    explain_routine_eli5,
     build_dependency_graph,
     find_similar_routines,
     generate_documentation,
@@ -20,6 +22,15 @@ router = APIRouter(prefix="/understand", tags=["understand"])
 async def explain(request: ExplainRequest):
     """Explain a subroutine in plain English."""
     result = explain_routine(request.subroutine_name)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Routine '{request.subroutine_name}' not found")
+    return result
+
+
+@router.post("/eli5", response_model=ELI5Response)
+async def eli5(request: ELI5Request):
+    """Explain a subroutine in kid-friendly ELI5 language."""
+    result = explain_routine_eli5(request.subroutine_name)
     if not result:
         raise HTTPException(status_code=404, detail=f"Routine '{request.subroutine_name}' not found")
     return result

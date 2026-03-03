@@ -36,6 +36,7 @@ const TYPE_STYLES: Record<string, { color: string; bg: string }> = {
 
 const UNDERSTAND_BUTTONS: { feature: UnderstandFeature; label: string; color: string; bg: string }[] = [
   { feature: "explain", label: "Explain", color: "var(--chalk-blue)", bg: "var(--chalk-blue-light)" },
+  { feature: "eli5", label: "ELI5", color: "var(--chalk-pink)", bg: "var(--chalk-pink-light)" },
   { feature: "dependencies", label: "Deps", color: "var(--chalk-purple)", bg: "var(--chalk-purple-light)" },
   { feature: "similar", label: "Similar", color: "var(--chalk-green)", bg: "var(--chalk-green-light)" },
   { feature: "document", label: "Docs", color: "var(--chalk-amber)", bg: "var(--chalk-amber-light)" },
@@ -43,6 +44,7 @@ const UNDERSTAND_BUTTONS: { feature: UnderstandFeature; label: string; color: st
 
 const ENDPOINT_MAP: Record<UnderstandFeature, string> = {
   explain: "/api/understand/explain",
+  eli5: "/api/understand/eli5",
   dependencies: "/api/understand/dependencies",
   similar: "/api/understand/similar",
   document: "/api/understand/document",

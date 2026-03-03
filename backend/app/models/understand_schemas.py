@@ -7,6 +7,10 @@ class ExplainRequest(BaseModel):
     subroutine_name: str
 
 
+class ELI5Request(BaseModel):
+    subroutine_name: str
+
+
 class DependencyRequest(BaseModel):
     subroutine_name: str
     max_depth: int = 3
@@ -24,6 +28,16 @@ class DocumentRequest(BaseModel):
 # --- Response models ---
 
 class ExplainResponse(BaseModel):
+    subroutine_name: str
+    routine_type: str | None
+    file_path: str
+    line_start: int
+    line_end: int
+    explanation: str
+    calls: list[str]
+
+
+class ELI5Response(BaseModel):
     subroutine_name: str
     routine_type: str | None
     file_path: str

@@ -48,8 +48,8 @@ def lookup_routine(name: str) -> dict | None:
     }
 
 
-def explain_routine(name: str) -> dict:
-    """Look up a routine and generate a plain-English explanation via Claude."""
+def _generate_explanation(name: str, system_prompt: str) -> dict | None:
+    """Look up a routine and generate an explanation via Claude."""
     routine = lookup_routine(name)
     if not routine:
         return None
@@ -58,10 +58,7 @@ def explain_routine(name: str) -> dict:
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
-        system=(
-            "You are a Fortran and LAPACK expert. Explain the following subroutine in plain English. "
-            "Cover: what it does, its parameters, the algorithm used, and when you'd use it. Be concise."
-        ),
+        system=system_prompt,
         messages=[{
             "role": "user",
             "content": (
@@ -82,6 +79,36 @@ def explain_routine(name: str) -> dict:
         "explanation": message.content[0].text,
         "calls": routine["calls"],
     }
+
+
+def explain_routine(name: str) -> dict | None:
+    """Look up a routine and generate a plain-English explanation via Claude."""
+    return _generate_explanation(
+        name,
+        (
+            "You are a Fortran and LAPACK expert. Explain the following subroutine in plain English. "
+            "Cover: what it does, its parameters, the algorithm used, and when you'd use it. Be concise."
+        ),
+    )
+
+
+def explain_routine_eli5(name: str) -> dict | None:
+    """Look up a routine and explain it in simple ELI5 language with emoji visuals."""
+    return _generate_explanation(
+        name,
+        (
+            "You are a fun, friendly teacher explaining code to a 5-year-old child. "
+            "Rules:\n"
+            "- Use VERY simple words and SHORT sentences (max 10 words each).\n"
+            "- Use lots of emoji as pictures to illustrate concepts (e.g. 🧮 for math, 📦 for storing things, 🔄 for swapping, ✂️ for splitting, 🏗️ for building).\n"
+            "- Start with a one-line emoji-rich summary like: '🧮✨ This is like a magic calculator!'\n"
+            "- Use a fun real-world analogy a kid would understand (sorting toys, stacking blocks, sharing cookies, etc.).\n"
+            "- Break the explanation into small sections with emoji headers.\n"
+            "- Never use technical jargon — say 'list of numbers' not 'array', 'answer' not 'return value'.\n"
+            "- End with a 'Why do we care?' section explaining why it matters, using kid-friendly examples.\n"
+            "- Keep the whole explanation under 200 words."
+        ),
+    )
 
 
 def build_dependency_graph(name: str, max_depth: int = 3) -> dict | None:

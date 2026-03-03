@@ -46,10 +46,11 @@ interface DocumentData {
   documentation: string;
 }
 
-export type UnderstandFeature = "explain" | "dependencies" | "similar" | "document";
+export type UnderstandFeature = "explain" | "eli5" | "dependencies" | "similar" | "document";
 
 export type UnderstandResult =
   | { feature: "explain"; data: ExplainData }
+  | { feature: "eli5"; data: ExplainData }
   | { feature: "dependencies"; data: DependencyData }
   | { feature: "similar"; data: SimilarData }
   | { feature: "document"; data: DocumentData };
@@ -316,6 +317,24 @@ function SimilarView({ data }: { data: SimilarData }) {
   );
 }
 
+function ELI5View({ data }: { data: ExplainData }) {
+  return (
+    <div className="space-y-3">
+      <div
+        className="answer-markdown text-base leading-relaxed rounded-lg p-4"
+        style={{
+          fontFamily: "var(--font-architects-daughter)",
+          color: "var(--ink)",
+          background: "var(--chalk-amber-light)",
+          border: "2px dashed var(--chalk-amber)",
+        }}
+      >
+        {renderMarkdown(data.explanation)}
+      </div>
+    </div>
+  );
+}
+
 function DocumentView({ data }: { data: DocumentData }) {
   return (
     <div className="answer-markdown text-sm leading-relaxed"
@@ -329,6 +348,7 @@ function DocumentView({ data }: { data: DocumentData }) {
 
 const LOADING_LABELS: Record<UnderstandFeature, string> = {
   explain: "Generating explanation…",
+  eli5: "Explaining in simple words…",
   dependencies: "Tracing call chain…",
   similar: "Finding similar routines…",
   document: "Generating documentation…",
@@ -351,6 +371,7 @@ export default function UnderstandPanel({ result, isLoading, feature }: Understa
       ) : result ? (
         <>
           {result.feature === "explain" && <ExplainView data={result.data} />}
+          {result.feature === "eli5" && <ELI5View data={result.data} />}
           {result.feature === "dependencies" && <DependencyView data={result.data} />}
           {result.feature === "similar" && <SimilarView data={result.data} />}
           {result.feature === "document" && <DocumentView data={result.data} />}
