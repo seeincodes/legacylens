@@ -1,19 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Architects_Daughter, JetBrains_Mono, Crimson_Pro } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const architectsDaughter = Architects_Daughter({
+  weight: "400",
+  variable: "--font-architects-daughter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  weight: ["400", "500", "700"],
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+});
+
+const crimsonPro = Crimson_Pro({
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-crimson-pro",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "LegacyLens",
+  title: "LegacyLens — LAPACK Explorer",
   description: "RAG-powered search for the LAPACK Fortran codebase",
 };
 
@@ -25,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${architectsDaughter.variable} ${jetbrainsMono.variable} ${crimsonPro.variable}`}
       >
         {children}
       </body>

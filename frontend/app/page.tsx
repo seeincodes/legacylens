@@ -51,8 +51,13 @@ export default function Home() {
         buffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = JSON.parse(line.slice(6));
+          if (!line || !line.startsWith("data: ")) continue;
+          let data;
+          try {
+            data = JSON.parse(line.slice(6));
+          } catch {
+            continue;
+          }
 
           if (data.type === "chunks") {
             setChunks(data.chunks);
@@ -66,7 +71,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Query failed:", error);
-      setAnswer("Error: Failed to query the backend. Is the server running?");
+      setAnswer("Could not reach the backend. Is the server running?");
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
@@ -74,17 +79,47 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center px-4 py-12 gap-6">
-      <div className="text-center mb-4">
-        <h1 className="text-3xl font-bold text-gray-900">LegacyLens</h1>
-        <p className="text-gray-500 mt-1">
-          RAG-powered search for the LAPACK Fortran codebase
+    <main className="relative z-10 min-h-screen flex flex-col items-center px-4 py-12 gap-6">
+      {/* Header */}
+      <div className="text-center mt-2 mb-1">
+        <h1
+          className="text-5xl md:text-6xl"
+          style={{
+            fontFamily: "var(--font-architects-daughter)",
+            color: "var(--ink)",
+          }}
+        >
+          LegacyLens
+        </h1>
+        <p
+          className="mt-2 text-base"
+          style={{
+            fontFamily: "var(--font-crimson-pro)",
+            color: "var(--ink-light)",
+            fontStyle: "italic",
+          }}
+        >
+          Explore the LAPACK Fortran codebase with natural language
         </p>
       </div>
 
-      <QueryInput onSubmit={handleQuery} isLoading={isLoading} />
-      <AnswerPanel answer={answer} isStreaming={isStreaming} />
-      <ResultsList chunks={chunks} />
+      {/* Query + Results */}
+      <div className="w-full max-w-3xl flex flex-col gap-5">
+        <QueryInput onSubmit={handleQuery} isLoading={isLoading} />
+        <AnswerPanel answer={answer} isStreaming={isStreaming} />
+        <ResultsList chunks={chunks} />
+      </div>
+
+      {/* Footer */}
+      <footer
+        className="mt-auto pt-10 text-center text-xs"
+        style={{
+          fontFamily: "var(--font-crimson-pro)",
+          color: "var(--ink-faint)",
+        }}
+      >
+        LAPACK — Linear Algebra PACKage — Univ. of Tennessee, UC Berkeley, NAG Ltd.
+      </footer>
     </main>
   );
 }
