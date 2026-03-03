@@ -114,6 +114,32 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, isLoading
               style={{ accentColor: "var(--chalk-blue)" }}
             />
             Expand search
+            <span
+              className="relative group"
+            >
+              <span
+                className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold cursor-help"
+                style={{
+                  color: "var(--chalk-blue)",
+                  background: "var(--chalk-blue-light)",
+                  border: "1px solid var(--chalk-blue)",
+                }}
+              >
+                ?
+              </span>
+              <span
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs whitespace-normal w-56 text-left opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-10 pointer-events-none"
+                style={{
+                  fontFamily: "var(--font-crimson-pro)",
+                  color: "var(--ink)",
+                  background: "white",
+                  border: "1px solid var(--paper-grid)",
+                  boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
+                }}
+              >
+                Uses AI to rephrase your query into 2-3 variants for better recall. Finds more results but takes slightly longer.
+              </span>
+            </span>
           </label>
         </div>
       </div>

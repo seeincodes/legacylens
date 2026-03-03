@@ -88,6 +88,122 @@ body::before {
   animation: blink 1s step-end infinite;
 }
 
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.loading-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    var(--paper-dark) 10%,
+    rgba(255, 255, 255, 0.65) 35%,
+    var(--paper-dark) 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+
+.loading-block {
+  border-radius: 999px;
+}
+
+.loading-card {
+  border: 1px dashed var(--paper-grid);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+/* ===== MATH SOLVER LOADING ===== */
+.math-solve-card {
+  border: 1px dashed var(--paper-grid);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.75rem 0.85rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.math-solve-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 1rem;
+}
+
+.math-solve-label {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: var(--ink-faint);
+  min-width: 4.8rem;
+  text-transform: uppercase;
+}
+
+.math-solve-line {
+  position: relative;
+  height: 0.78rem;
+  border-radius: 999px;
+  border: 1px dashed var(--paper-grid);
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
+    var(--chalk-blue-light);
+  background-size: 220% 100%, 100% 100%;
+  animation: shimmer 1.35s linear infinite;
+}
+
+.math-solve-line.amber {
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
+    var(--chalk-amber-light);
+  background-size: 220% 100%, 100% 100%;
+}
+
+.math-solve-line.pink {
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
+    var(--chalk-pink-light);
+  background-size: 220% 100%, 100% 100%;
+}
+
+.math-solve-cursor {
+  width: 2px;
+  height: 0.95rem;
+  border-radius: 999px;
+  background: var(--chalk-blue);
+  animation: blink 0.9s step-end infinite;
+}
+
+.math-load-formula {
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+}
+
+.math-load-track {
+  position: relative;
+  width: 100%;
+  height: 0.7rem;
+  border-radius: 999px;
+  border: 1px dashed var(--paper-grid);
+  background: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+}
+
+.math-load-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.85) 50%, transparent 100%),
+    linear-gradient(90deg, var(--chalk-blue-light), var(--chalk-amber-light), var(--chalk-pink-light));
+  background-size: 220% 100%, 100% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--paper-dark); }

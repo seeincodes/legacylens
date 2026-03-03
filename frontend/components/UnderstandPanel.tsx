@@ -360,13 +360,29 @@ export default function UnderstandPanel({ result, isLoading, feature }: Understa
   return (
     <div className="px-4 sm:px-5 py-4" style={{ borderTop: "2px dashed var(--paper-grid)" }}>
       {isLoading ? (
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-1.5 h-1.5 rounded-full cursor-blink"
-            style={{ background: "var(--chalk-amber)" }} />
-          <span className="text-sm"
-            style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)", fontStyle: "italic" }}>
-            {LOADING_LABELS[feature]}
-          </span>
+        <div className="loading-card p-3 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block w-2 h-2 rounded-full cursor-blink"
+              style={{ background: "var(--chalk-amber)" }}
+            />
+            <span
+              className="text-sm"
+              style={{
+                fontFamily: "var(--font-crimson-pro)",
+                color: "var(--ink-light)",
+                fontStyle: "italic",
+              }}
+            >
+              {LOADING_LABELS[feature]}
+            </span>
+          </div>
+          <div className="math-solve-card">
+            <div className="math-load-formula">{`f(${feature}) -> structured_answer`}</div>
+            <div className="math-load-track">
+              <div className="math-load-fill" />
+            </div>
+          </div>
         </div>
       ) : result ? (
         <>

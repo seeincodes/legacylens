@@ -8,7 +8,7 @@ interface AnswerPanelProps {
 }
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
-  const inlinePattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  const inlinePattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[A-Z][A-Za-z0-9_/.-]+:\d+[-–]\d+\])/g;
   const parts = text.split(inlinePattern).filter(Boolean);
 
   return parts.map((part, idx) => {
@@ -21,6 +21,23 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     }
     if (part.startsWith("*") && part.endsWith("*")) {
       return <em key={key}>{part.slice(1, -1)}</em>;
+    }
+    if (/^\[[A-Z][A-Za-z0-9_/.-]+:\d+[-–]\d+\]$/.test(part)) {
+      return (
+        <span
+          key={key}
+          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mx-0.5 align-baseline"
+          style={{
+            fontFamily: "var(--font-jetbrains-mono)",
+            color: "var(--chalk-purple)",
+            background: "var(--chalk-purple-light)",
+            border: "1px solid var(--chalk-purple)",
+            fontSize: "0.75em",
+          }}
+        >
+          {part.slice(1, -1)}
+        </span>
+      );
     }
     return <span key={key}>{part}</span>;
   });

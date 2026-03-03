@@ -137,13 +137,25 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
       </div>
 
       {isLoading && (
-        <div className="math-card p-4">
-          <p
-            className="text-sm"
-            style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)" }}
-          >
-            Searching and retrieving relevant code snippets...
-          </p>
+        <div className="math-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block w-2 h-2 rounded-full cursor-blink"
+              style={{ background: "var(--chalk-blue)" }}
+            />
+            <p
+              className="text-sm italic"
+              style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)" }}
+            >
+              Searching and retrieving relevant code snippets...
+            </p>
+          </div>
+          <div className="loading-card p-3 space-y-2">
+            <div className="math-load-formula">{"f(query) -> retrieve(code_chunks)"}</div>
+            <div className="math-load-track">
+              <div className="math-load-fill" />
+            </div>
+          </div>
         </div>
       )}
 
