@@ -14,6 +14,10 @@ END_RE = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 CALL_RE = re.compile(r"CALL\s+(\w+)", re.IGNORECASE)
+BRIEF_RE = re.compile(r'\*>\s*\\brief\s*<b>\s*(.*?)</b>', re.IGNORECASE)
+PURPOSE_RE = re.compile(r'\*>\s*\\verbatim\s*\n((?:\*>.*\n)*)', re.MULTILINE)
+HTMLONLY_RE = re.compile(r'\*>\s*\\htmlonly.*?\\endhtmlonly\s*\n?', re.DOTALL)
+DOC_BANNER_RE = re.compile(r'\*\s*=+\s*DOCUMENTATION\s*=+\s*\n(?:\*\s*\n)*', re.IGNORECASE)
 PRECISION_MAP = {"s": "single", "d": "double", "c": "complex", "z": "double_complex"}
 
 
@@ -41,6 +45,61 @@ def extract_metadata(content: str, file_path: str) -> dict:
         "routine_type": detect_routine_type(content, file_path),
         "calls": calls,
     }
+
+
+def extract_description(content: str) -> str:
+    """Extract a human-readable description from Fortran comment headers.
+
+    Tries two patterns:
+    1. \\brief <b> ROUTINE description text </b>  -- strip the routine name prefix
+    2. If \\brief only has the routine name, look in the Purpose/\\verbatim section
+    """
+    # Pattern A: description inside \brief <b>...</b>
+    m = BRIEF_RE.search(content)
+    if m:
+        raw = m.group(1).strip()
+        # Check if this is more than just a routine name (e.g. "DPOTRF" vs
+        # "DGESV computes the solution ...").  A bare name is a single word
+        # with no spaces beyond leading/trailing whitespace.
+        if " " in raw:
+            # Strip leading routine name if present (e.g. "DGESV computes..." -> "computes...")
+            # The routine name is typically the first all-caps token.
+            tokens = raw.split(None, 1)
+            if len(tokens) == 2 and tokens[0].isupper():
+                return tokens[1].strip()
+            return raw
+        # Fall through to Pattern B if brief only contains the routine name.
+
+    # Pattern B: description in Purpose / \verbatim block
+    m = PURPOSE_RE.search(content)
+    if m:
+        block = m.group(1)
+        # Clean up Fortran comment markers and collect non-empty lines
+        lines: list[str] = []
+        for line in block.splitlines():
+            # Strip the leading "*>" marker
+            cleaned = re.sub(r'^\s*\*>\s?', '', line).strip()
+            if cleaned:
+                lines.append(cleaned)
+        if lines:
+            text = " ".join(lines)
+            # Remove stray Doxygen markers
+            text = text.replace("\\endverbatim", "").replace("\\verbatim", "")
+            # Collapse whitespace
+            text = re.sub(r'\s+', ' ', text).strip()
+            # Truncate to first 200 chars at a word boundary
+            if len(text) > 200:
+                text = text[:200].rsplit(' ', 1)[0]
+            return text
+
+    return ""
+
+
+def strip_html_noise(content: str) -> str:
+    """Remove \\htmlonly...\\endhtmlonly blocks and the DOCUMENTATION banner."""
+    result = HTMLONLY_RE.sub('', content)
+    result = DOC_BANNER_RE.sub('', result)
+    return result
 
 
 def parse_fortran_file(content: str, file_path: str) -> list[dict]:
@@ -78,7 +137,9 @@ def parse_fortran_file(content: str, file_path: str) -> list[dict]:
                 "routine_type": meta["routine_type"],
                 "precision_type": meta["precision_type"],
                 "content": chunk_content,
-                "metadata": {"calls": meta["calls"]},
+                "metadata": {"calls": list(set(
+                    m.group(1).upper() for m in CALL_RE.finditer(chunk_content)
+                ))},
             })
             current_name = None
 
@@ -102,33 +163,58 @@ def discover_fortran_files(base_dir: str) -> list[str]:
     files = []
     for root, _, filenames in os.walk(base_dir):
         for f in filenames:
-            if f.endswith((".f", ".f90")):
+            if f.endswith((".f", ".f90", ".f95", ".f03")):
                 files.append(os.path.join(root, f))
     return sorted(files)
 
 
 def build_chunk_text(chunk: dict) -> str:
-    prefix = (
-        f"File: {chunk['file_path']} | "
-        f"Subroutine: {chunk['subroutine_name']} | "
-        f"Type: {chunk['routine_type']} | "
-        f"Precision: {chunk['precision_type']}"
-    )
-    return f"{prefix}\n\n{chunk['content']}"
+    from app.services.concept_map import get_concepts_for_stem, get_stem_from_routine_name
+
+    desc = extract_description(chunk["content"])
+    clean_content = strip_html_noise(chunk["content"])
+
+    prefix_parts = [
+        f"File: {chunk['file_path']}",
+        f"Subroutine: {chunk['subroutine_name']}",
+        f"Type: {chunk['routine_type']}",
+        f"Precision: {chunk['precision_type']}",
+    ]
+    if desc:
+        prefix_parts.append(f"Description: {desc}")
+
+    name = chunk.get("subroutine_name") or ""
+    stem = get_stem_from_routine_name(name)
+    concepts = get_concepts_for_stem(stem)
+    if concepts:
+        prefix_parts.append(f"Concepts: {', '.join(concepts)}")
+
+    prefix = " | ".join(prefix_parts)
+    return f"{prefix}\n\n{clean_content}"
 
 
 def generate_embeddings(texts: list[str], batch_size: int = 100) -> list[list[float]]:
+    import time
     import openai
     from app.config import settings
     client = openai.OpenAI(api_key=settings.openai_api_key)
-    # Truncate texts that exceed the model's 8191 token limit (~25k chars for code)
-    max_chars = 15000
+    # Truncate texts that exceed the model's 8191 token limit (~4 chars/token for code)
+    max_chars = 10000
     texts = [t[:max_chars] if len(t) > max_chars else t for t in texts]
     all_embeddings = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
-        response = client.embeddings.create(model="text-embedding-3-small", input=batch)
-        all_embeddings.extend([item.embedding for item in response.data])
+        for attempt in range(5):
+            try:
+                response = client.embeddings.create(model="text-embedding-3-small", input=batch)
+                all_embeddings.extend([item.embedding for item in response.data])
+                break
+            except openai.RateLimitError as e:
+                wait = 2 ** attempt + 1
+                print(f"  Rate limited, waiting {wait}s... ({e})")
+                time.sleep(wait)
+        else:
+            raise RuntimeError(f"Failed to embed batch {i} after 5 retries")
         print(f"  Embedded {min(i + batch_size, len(texts))}/{len(texts)}")
     return all_embeddings
 
@@ -139,16 +225,17 @@ def store_chunks(chunks: list[dict], embeddings: list[list[float]]):
     conn = psycopg2.connect(settings.database_url)
     register_vector(conn)
     cur = conn.cursor()
-    for chunk, emb in zip(chunks, embeddings):
-        cur.execute(
-            """INSERT INTO code_chunks
+    sql = """INSERT INTO code_chunks
                 (file_path, line_start, line_end, subroutine_name,
                  routine_type, precision_type, content, metadata, embedding)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (chunk["file_path"], chunk["line_start"], chunk["line_end"],
-             chunk["subroutine_name"], chunk["routine_type"], chunk["precision_type"],
-             chunk["content"], psycopg2.extras.Json(chunk["metadata"]), emb),
-        )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+    data = [
+        (chunk["file_path"], chunk["line_start"], chunk["line_end"],
+         chunk["subroutine_name"], chunk["routine_type"], chunk["precision_type"],
+         chunk["content"], psycopg2.extras.Json(chunk["metadata"]), emb)
+        for chunk, emb in zip(chunks, embeddings)
+    ]
+    psycopg2.extras.execute_batch(cur, sql, data, page_size=100)
     conn.commit()
     cur.close()
     conn.close()

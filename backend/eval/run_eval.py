@@ -34,6 +34,7 @@ def evaluate_query(
     entry: dict,
     top_k: int = 5,
     expand: bool = False,
+    rerank: bool = False,
 ) -> dict:
     """Run a single query and compute metrics."""
     query = entry["query"]
@@ -42,7 +43,7 @@ def evaluate_query(
     all_relevant = expected | related
 
     start = time.perf_counter()
-    results = search(query=query, top_k=top_k, expand=expand)
+    results = search(query=query, top_k=top_k, expand=expand, rerank=rerank)
     latency_ms = (time.perf_counter() - start) * 1000
 
     retrieved = []
@@ -82,17 +83,18 @@ def run_evaluation(
     ground_truth_path: str | None = None,
     top_k: int = 5,
     expand: bool = False,
+    rerank: bool = False,
 ) -> dict:
     """Run full evaluation and return aggregate metrics."""
     entries = load_ground_truth(ground_truth_path)
     results = []
     latencies = []
 
-    print(f"Running evaluation: {len(entries)} queries, top_k={top_k}, expand={expand}")
+    print(f"Running evaluation: {len(entries)} queries, top_k={top_k}, expand={expand}, rerank={rerank}")
     print("-" * 70)
 
     for entry in entries:
-        result = evaluate_query(entry, top_k=top_k, expand=expand)
+        result = evaluate_query(entry, top_k=top_k, expand=expand, rerank=rerank)
         results.append(result)
         latencies.append(result["latency_ms"])
 
@@ -131,7 +133,7 @@ def run_evaluation(
         }
 
     summary = {
-        "config": {"top_k": top_k, "expand": expand, "num_queries": n},
+        "config": {"top_k": top_k, "expand": expand, "rerank": rerank, "num_queries": n},
         "aggregate": {
             "precision_at_k": round(avg_precision, 4),
             "recall_at_k": round(avg_recall, 4),
@@ -167,6 +169,7 @@ def main():
     parser.add_argument("--ground-truth", type=str, default=None, help="Path to ground truth JSON")
     parser.add_argument("--top-k", type=int, default=5, help="Number of results to retrieve")
     parser.add_argument("--expand", action="store_true", help="Enable query expansion")
+    parser.add_argument("--rerank", action="store_true", help="Enable LLM re-ranking")
     parser.add_argument("--output", type=str, default=None, help="Save results to JSON file")
     args = parser.parse_args()
 
@@ -174,6 +177,7 @@ def main():
         ground_truth_path=args.ground_truth,
         top_k=args.top_k,
         expand=args.expand,
+        rerank=args.rerank,
     )
 
     if args.output:
