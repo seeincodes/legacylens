@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import CodeBlock from "./CodeBlock";
 import UnderstandPanel from "./UnderstandPanel";
 import type { UnderstandFeature, UnderstandResult } from "./UnderstandPanel";
@@ -64,6 +64,7 @@ interface UnderstandState {
 export default function ResultsList({ chunks, isLoading, error, hasSearched }: ResultsListProps) {
   const [expandedChunks, setExpandedChunks] = useState<Record<string, boolean>>({});
   const [understandState, setUnderstandState] = useState<Record<string, UnderstandState>>({});
+  const understandCache = useRef<Map<string, UnderstandResult>>(new Map());
 
   useEffect(() => {
     setExpandedChunks({});
@@ -76,6 +77,17 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
     // Toggle off if same feature
     if (current?.feature === feature && !current.isLoading) {
       setUnderstandState((prev) => ({ ...prev, [chunkKey]: { feature: null, result: null, isLoading: false, error: "" } }));
+      return;
+    }
+
+    // Check frontend cache first
+    const cacheKey = `${subroutineName.toUpperCase()}:${feature}`;
+    const cached = understandCache.current.get(cacheKey);
+    if (cached) {
+      setUnderstandState((prev) => ({
+        ...prev,
+        [chunkKey]: { feature, result: cached, isLoading: false, error: "" },
+      }));
       return;
     }
 
@@ -97,9 +109,11 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
       }
 
       const data = await response.json();
+      const result = { feature, data } as UnderstandResult;
+      understandCache.current.set(cacheKey, result);
       setUnderstandState((prev) => ({
         ...prev,
-        [chunkKey]: { feature, result: { feature, data } as UnderstandResult, isLoading: false, error: "" },
+        [chunkKey]: { feature, result, isLoading: false, error: "" },
       }));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Request failed";

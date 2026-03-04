@@ -1,5 +1,6 @@
 import json
 import re
+from collections import OrderedDict
 
 import anthropic
 import openai
@@ -7,6 +8,29 @@ import psycopg2
 from pgvector.psycopg2 import register_vector
 
 from app.config import settings
+
+# ---------------------------------------------------------------------------
+# In-memory LRU cache for understand results
+# Key: (routine_name_upper, action)  Value: response dict
+# ---------------------------------------------------------------------------
+_understand_cache: OrderedDict[tuple[str, str], dict] = OrderedDict()
+_CACHE_MAX = 512
+
+
+def _get_cached(name: str, action: str) -> dict | None:
+    key = (name.upper(), action)
+    if key in _understand_cache:
+        _understand_cache.move_to_end(key)
+        return _understand_cache[key]
+    return None
+
+
+def _put_cached(name: str, action: str, result: dict) -> None:
+    key = (name.upper(), action)
+    _understand_cache[key] = result
+    _understand_cache.move_to_end(key)
+    while len(_understand_cache) > _CACHE_MAX:
+        _understand_cache.popitem(last=False)
 
 
 def _get_conn():
@@ -106,7 +130,10 @@ def _generate_explanation(name: str, system_prompt: str, max_tokens: int = 768) 
 
 def explain_routine(name: str) -> dict | None:
     """Look up a routine and generate a plain-English explanation via Claude."""
-    return _generate_explanation(
+    cached = _get_cached(name, "explain")
+    if cached:
+        return cached
+    result = _generate_explanation(
         name,
         (
             "You are a Fortran and LAPACK expert. Explain the following subroutine in plain English. "
@@ -114,11 +141,17 @@ def explain_routine(name: str) -> dict | None:
             "Be concise. Keep under 300 words."
         ),
     )
+    if result:
+        _put_cached(name, "explain", result)
+    return result
 
 
 def explain_routine_eli5(name: str) -> dict | None:
     """Look up a routine and explain it in simple ELI5 language with emoji visuals."""
-    return _generate_explanation(
+    cached = _get_cached(name, "eli5")
+    if cached:
+        return cached
+    result = _generate_explanation(
         name,
         (
             "You are a fun, friendly teacher explaining code to a 5-year-old child. "
@@ -134,10 +167,17 @@ def explain_routine_eli5(name: str) -> dict | None:
         ),
         max_tokens=512,
     )
+    if result:
+        _put_cached(name, "eli5", result)
+    return result
 
 
 def build_dependency_graph(name: str, max_depth: int = 3) -> dict | None:
     """BFS traversal of call chains using metadata.calls."""
+    cached = _get_cached(name, f"dependencies:{max_depth}")
+    if cached:
+        return cached
+
     root = lookup_routine(name, include_embedding=False)
     if not root:
         return None
@@ -183,15 +223,21 @@ def build_dependency_graph(name: str, max_depth: int = 3) -> dict | None:
     cur.close()
     conn.close()
 
-    return {
+    result = {
         "root": root["subroutine_name"],
         "nodes": nodes,
         "max_depth": max_depth,
     }
+    _put_cached(name, f"dependencies:{max_depth}", result)
+    return result
 
 
 def find_similar_routines(name: str, top_k: int = 5) -> dict | None:
     """Find routines with similar embeddings, excluding the source routine."""
+    cached = _get_cached(name, f"similar:{top_k}")
+    if cached:
+        return cached
+
     routine = lookup_routine(name)
     if not routine:
         return None
@@ -226,11 +272,17 @@ def find_similar_routines(name: str, top_k: int = 5) -> dict | None:
             "content_preview": preview,
         })
 
-    return {"subroutine_name": routine["subroutine_name"], "similar": similar}
+    result = {"subroutine_name": routine["subroutine_name"], "similar": similar}
+    _put_cached(name, f"similar:{top_k}", result)
+    return result
 
 
 def generate_documentation(name: str) -> dict | None:
     """Generate structured documentation for a routine via Claude."""
+    cached = _get_cached(name, "document")
+    if cached:
+        return cached
+
     routine = lookup_routine(name, include_embedding=False)
     if not routine:
         return None
@@ -262,14 +314,20 @@ def generate_documentation(name: str) -> dict | None:
         }],
     )
 
-    return {
+    result = {
         "subroutine_name": routine["subroutine_name"],
         "documentation": message.content[0].text,
     }
+    _put_cached(name, "document", result)
+    return result
 
 
 def translate_routine(name: str) -> dict | None:
     """Generate equivalent NumPy/SciPy code for a routine."""
+    cached = _get_cached(name, "translate")
+    if cached:
+        return cached
+
     routine = lookup_routine(name, include_embedding=False)
     if not routine:
         return None
@@ -301,15 +359,21 @@ def translate_routine(name: str) -> dict | None:
     code_match = re.search(r"```python\n(.*?)```", text, re.DOTALL)
     code = code_match.group(1).strip() if code_match else ""
     explanation = re.sub(r"```python\n.*?```", "", text, flags=re.DOTALL).strip() if code_match else text
-    return {
+    result = {
         "subroutine_name": routine["subroutine_name"],
         "code": code,
         "explanation": explanation or "See code below.",
     }
+    _put_cached(name, "translate", result)
+    return result
 
 
 def get_use_cases(name: str) -> dict | None:
     """Generate use case scenarios and when to use this routine."""
+    cached = _get_cached(name, "use-cases")
+    if cached:
+        return cached
+
     routine = lookup_routine(name, include_embedding=False)
     if not routine:
         return None
@@ -336,8 +400,10 @@ def get_use_cases(name: str) -> dict | None:
         }],
     )
 
-    return {
+    result = {
         "subroutine_name": routine["subroutine_name"],
         "use_cases": message.content[0].text,
         "typical_callers": [],
     }
+    _put_cached(name, "use-cases", result)
+    return result
