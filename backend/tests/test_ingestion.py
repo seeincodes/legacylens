@@ -1,7 +1,7 @@
 import sys, os, tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.services.ingestion import parse_fortran_file, extract_metadata, discover_fortran_files, extract_description, strip_html_noise, build_chunk_text
+from app.services.ingestion import parse_fortran_file, extract_metadata, discover_fortran_files, extract_description, strip_html_noise, build_chunk_text, detect_blas_level
 
 SAMPLE_FORTRAN = """\
 *> \\brief <b> DGESV computes the solution to system of linear equations A * X = B</b>
@@ -205,3 +205,83 @@ def test_build_chunk_text_no_concepts_for_unknown():
     }
     text = build_chunk_text(chunk)
     assert "Concepts:" not in text
+
+
+# --- Fixtures and tests for BLAS level detection ---
+
+BLAS_LEVEL1_CONTENT = """\
+*  -- Reference BLAS level1 routine --
+*     -- LAPACK is a software package provided by Univ. of Tennessee,    --
+*
+      SUBROUTINE DAXPY(N,DA,DX,INCX,DY,INCY)
+      RETURN
+      END
+"""
+
+BLAS_LEVEL2_CONTENT = """\
+*  -- Reference BLAS level2 routine --
+*     -- LAPACK is a software package provided by Univ. of Tennessee,    --
+*
+      SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
+      RETURN
+      END
+"""
+
+BLAS_LEVEL3_CONTENT = """\
+*  -- Reference BLAS level3 routine --
+*     -- LAPACK is a software package provided by Univ. of Tennessee,    --
+*
+      SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+      RETURN
+      END
+"""
+
+LAPACK_CONTENT = """\
+      SUBROUTINE DGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+      CALL DGETRF( N, N, A, LDA, IPIV, INFO )
+      RETURN
+      END
+"""
+
+
+def test_detect_blas_level1():
+    assert detect_blas_level(BLAS_LEVEL1_CONTENT) == "1"
+
+
+def test_detect_blas_level2():
+    assert detect_blas_level(BLAS_LEVEL2_CONTENT) == "2"
+
+
+def test_detect_blas_level3():
+    assert detect_blas_level(BLAS_LEVEL3_CONTENT) == "3"
+
+
+def test_detect_blas_level_non_blas():
+    assert detect_blas_level(LAPACK_CONTENT) is None
+
+
+BLAS_LEVEL3_FILE = """\
+*  -- Reference BLAS level3 routine --
+*
+*> \\brief <b> DGEMM performs matrix-matrix multiply</b>
+*
+      SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+      RETURN
+      END SUBROUTINE DGEMM
+"""
+
+
+def test_parse_fortran_file_includes_blas_level():
+    chunks = parse_fortran_file(BLAS_LEVEL3_FILE, "BLAS/SRC/dgemm.f")
+    assert chunks[0]["blas_level"] == "3"
+
+
+def test_parse_fortran_file_no_blas_level_for_lapack():
+    chunks = parse_fortran_file(SAMPLE_FORTRAN, "SRC/dgesv.f")
+    assert chunks[0]["blas_level"] is None
+
+
+def test_build_chunk_text_includes_blas_level():
+    chunks = parse_fortran_file(BLAS_LEVEL3_FILE, "BLAS/SRC/dgemm.f")
+    text = build_chunk_text(chunks[0])
+    assert "BLAS Level: 3" in text

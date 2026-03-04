@@ -18,6 +18,7 @@ BRIEF_RE = re.compile(r'\*>\s*\\brief\s*<b>\s*(.*?)</b>', re.IGNORECASE)
 PURPOSE_RE = re.compile(r'\*>\s*\\verbatim\s*\n((?:\*>.*\n)*)', re.MULTILINE)
 HTMLONLY_RE = re.compile(r'\*>\s*\\htmlonly.*?\\endhtmlonly\s*\n?', re.DOTALL)
 DOC_BANNER_RE = re.compile(r'\*\s*=+\s*DOCUMENTATION\s*=+\s*\n(?:\*\s*\n)*', re.IGNORECASE)
+BLAS_LEVEL_RE = re.compile(r'Reference BLAS level(\d) routine', re.IGNORECASE)
 PRECISION_MAP = {"s": "single", "d": "double", "c": "complex", "z": "double_complex"}
 
 
@@ -35,6 +36,11 @@ def detect_routine_type(content: str, file_path: str) -> str:
     if upper.count("CALL ") >= 3:
         return "driver"
     return "computational"
+
+
+def detect_blas_level(content: str) -> str | None:
+    m = BLAS_LEVEL_RE.search(content)
+    return m.group(1) if m else None
 
 
 def extract_metadata(content: str, file_path: str) -> dict:
@@ -104,6 +110,7 @@ def strip_html_noise(content: str) -> str:
 
 def parse_fortran_file(content: str, file_path: str) -> list[dict]:
     meta = extract_metadata(content, file_path)
+    blas_level = detect_blas_level(content)
     lines = content.split("\n")
     chunks = []
     current_name = None
@@ -136,6 +143,7 @@ def parse_fortran_file(content: str, file_path: str) -> list[dict]:
                 "subroutine_name": current_name,
                 "routine_type": meta["routine_type"],
                 "precision_type": meta["precision_type"],
+                "blas_level": blas_level,
                 "content": chunk_content,
                 "metadata": {"calls": list(set(
                     m.group(1).upper() for m in CALL_RE.finditer(chunk_content)
@@ -152,6 +160,7 @@ def parse_fortran_file(content: str, file_path: str) -> list[dict]:
             "subroutine_name": basename,
             "routine_type": meta["routine_type"],
             "precision_type": meta["precision_type"],
+            "blas_level": blas_level,
             "content": content,
             "metadata": {"calls": meta["calls"]},
         })
@@ -180,6 +189,8 @@ def build_chunk_text(chunk: dict) -> str:
         f"Type: {chunk['routine_type']}",
         f"Precision: {chunk['precision_type']}",
     ]
+    if chunk.get("blas_level"):
+        prefix_parts.append(f"BLAS Level: {chunk['blas_level']}")
     if desc:
         prefix_parts.append(f"Description: {desc}")
 
@@ -227,12 +238,13 @@ def store_chunks(chunks: list[dict], embeddings: list[list[float]]):
     cur = conn.cursor()
     sql = """INSERT INTO code_chunks
                 (file_path, line_start, line_end, subroutine_name,
-                 routine_type, precision_type, content, metadata, embedding)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                 routine_type, precision_type, blas_level, content, metadata, embedding)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     data = [
         (chunk["file_path"], chunk["line_start"], chunk["line_end"],
          chunk["subroutine_name"], chunk["routine_type"], chunk["precision_type"],
-         chunk["content"], psycopg2.extras.Json(chunk["metadata"]), emb)
+         chunk.get("blas_level"), chunk["content"],
+         psycopg2.extras.Json(chunk["metadata"]), emb)
         for chunk, emb in zip(chunks, embeddings)
     ]
     psycopg2.extras.execute_batch(cur, sql, data, page_size=100)
