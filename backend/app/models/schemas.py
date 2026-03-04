@@ -7,6 +7,7 @@ class QueryRequest(BaseModel):
     routine_type: str | None = None
     precision_type: str | None = None
     expand: bool = False
+    rerank: bool = True
 
 
 class ChunkResult(BaseModel):

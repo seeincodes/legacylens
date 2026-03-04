@@ -243,16 +243,135 @@ def keyword_search(
     ]
 
 
+def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
+    """Inject matching D-prefix routines from the concept map into results."""
+    from app.services.concept_map import find_stems_for_query
+
+    matching_stems = find_stems_for_query(query)
+    if not matching_stems:
+        return existing_results
+
+    from app.db import get_connection
+
+    existing_ids = {r["id"] for r in existing_results}
+    boosted = list(existing_results)
+
+    with get_connection() as conn:
+        cur = conn.cursor()
+        for stem in matching_stems:
+            d_name = f"D{stem}"
+            cur.execute(
+                """SELECT id, file_path, line_start, line_end, subroutine_name,
+                          routine_type, content, metadata
+                   FROM code_chunks
+                   WHERE UPPER(subroutine_name) = UPPER(%s)
+                   LIMIT 1""",
+                (d_name,),
+            )
+            row = cur.fetchone()
+            if row and row[0] not in existing_ids:
+                boosted.append({
+                    "id": row[0], "file_path": row[1], "line_start": row[2],
+                    "line_end": row[3], "subroutine_name": row[4],
+                    "routine_type": row[5], "content": row[6],
+                    "metadata": row[7], "rrf_score": 999.0,
+                })
+                existing_ids.add(row[0])
+            elif row and row[0] in existing_ids:
+                for r in boosted:
+                    if r["id"] == row[0]:
+                        r["rrf_score"] = r.get("rrf_score", 0) + 999.0
+                        break
+        cur.close()
+
+    return boosted
+
+
+def llm_rerank(query: str, candidates: list[dict], top_k: int = 5) -> list[dict]:
+    """Use Claude Haiku to re-rank retrieval candidates by relevance.
+
+    Falls back to original ranking on any failure.
+    """
+    if not candidates or anthropic is None:
+        return candidates[:top_k]
+
+    client = _get_anthropic_client()
+    if client is None:
+        return candidates[:top_k]
+
+    limit = min(len(candidates), 15)
+    descriptions = []
+    for i, r in enumerate(candidates[:limit]):
+        name = r.get("subroutine_name", "unknown")
+        rtype = r.get("routine_type", "")
+        content = r.get("content", "")
+        # Extract first comment line as a brief description
+        brief = ""
+        for line in content.split("\n"):
+            stripped = line.strip()
+            if stripped.startswith("*") or stripped.startswith("!"):
+                cleaned = stripped.lstrip("*! ").strip()
+                if len(cleaned) > 10:
+                    brief = cleaned[:120]
+                    break
+        descriptions.append(f"{i}: {name} ({rtype}) - {brief}")
+
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=100,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Given the LAPACK/linear algebra query: \"{query}\"\n\n"
+                    f"Rank these routines by relevance (most relevant first). "
+                    f"Return ONLY the indices as comma-separated numbers.\n\n"
+                    + "\n".join(descriptions)
+                ),
+            }],
+        )
+
+        text = response.content[0].text.strip()
+        indices = []
+        for token in text.replace(" ", "").split(","):
+            token = token.strip()
+            if token.isdigit():
+                idx = int(token)
+                if 0 <= idx < limit and idx not in indices:
+                    indices.append(idx)
+
+        if not indices:
+            return candidates[:top_k]
+
+        reranked = [candidates[i] for i in indices]
+        seen_ids = {r["id"] for r in reranked}
+        for r in candidates:
+            if len(reranked) >= top_k:
+                break
+            if r["id"] not in seen_ids:
+                reranked.append(r)
+                seen_ids.add(r["id"])
+
+        return reranked[:top_k]
+
+    except Exception as exc:
+        logger.warning("LLM rerank failed, using original ranking: %s", exc)
+        return candidates[:top_k]
+
+
 def search(
     query: str,
     top_k: int = 5,
     routine_type: str | None = None,
     precision_type: str | None = None,
     expand: bool = False,
+    rerank: bool = True,
 ) -> list[ChunkResult]:
     t0 = time.perf_counter()
     queries = expand_query(query) if expand else [query]
     t_expand = time.perf_counter()
+
+    pool_size = 15 if rerank else 10
 
     vector_results = []
     for query_variant in queries:
@@ -260,7 +379,7 @@ def search(
         vector_results.extend(
             vector_search(
                 query_embedding,
-                top_k=10,
+                top_k=pool_size,
                 routine_type=routine_type,
                 precision_type=precision_type,
             )
@@ -269,7 +388,7 @@ def search(
 
     kw_results = keyword_search(
         query,
-        top_k=10,
+        top_k=pool_size,
         routine_type=routine_type,
         precision_type=precision_type,
     )
@@ -277,36 +396,43 @@ def search(
 
     merged = reciprocal_rank_fusion(vector_results, kw_results)
 
+    # Concept boost: inject matching routines from concept map
+    merged = concept_boost(query, merged)
+
     # When no precision filter is set, boost double-precision (D-prefix) results
     # and penalize level-2 helper routines (names ending in digits like POTRF2).
-    # LAPACK uses D-prefix as the canonical reference implementation, and users
-    # searching by concept (e.g. "Cholesky") typically want the primary routine
-    # rather than single/complex variants or internal helpers.
     if not precision_type:
         for r in merged:
             name = (r.get("subroutine_name") or "")
             if not name:
                 continue
-            # Boost double-precision routines
             if name[0].upper() == "D":
                 r["rrf_score"] = r["rrf_score"] * 2.0
-            # Penalize internal helpers (names ending in digits, e.g. DPOTRF2)
             if name[-1].isdigit():
                 r["rrf_score"] = r["rrf_score"] * 0.5
 
+    merged.sort(key=lambda x: x.get("rrf_score", 0), reverse=True)
     merged = normalize_scores(merged)
+
+    # LLM re-ranking
+    if rerank:
+        t_rerank_start = time.perf_counter()
+        merged = llm_rerank(query, merged, top_k=top_k)
+        t_rerank = time.perf_counter()
+        logger.info("rerank_ms=%.0f", (t_rerank - t_rerank_start) * 1000)
 
     logger.info(
         "search query=%r expand_ms=%.0f vector_ms=%.0f keyword_ms=%.0f total_ms=%.0f "
-        "vector_hits=%d keyword_hits=%d merged=%d",
+        "vector_hits=%d keyword_hits=%d merged=%d rerank=%s",
         query[:80],
         (t_expand - t0) * 1000,
         (t_vector - t_expand) * 1000,
         (t_keyword - t_vector) * 1000,
-        (t_keyword - t0) * 1000,
+        (time.perf_counter() - t0) * 1000,
         len(vector_results),
         len(kw_results),
         len(merged),
+        rerank,
     )
 
     results = []
@@ -317,7 +443,7 @@ def search(
             ChunkResult(
                 file_path=r["file_path"], line_start=r["line_start"], line_end=r["line_end"],
                 subroutine_name=r.get("subroutine_name"), routine_type=r.get("routine_type"),
-                content=r["content"], relevance_score=round(r["rrf_score"], 4),
+                content=r["content"], relevance_score=round(r.get("rrf_score", 0), 4),
                 relevance_label=r.get("relevance_label", "Medium"),
                 calls=calls,
             )

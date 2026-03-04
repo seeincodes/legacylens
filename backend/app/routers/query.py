@@ -87,6 +87,7 @@ async def query_codebase(request: QueryRequest):
             routine_type=request.routine_type,
             precision_type=request.precision_type,
             expand=request.expand,
+            rerank=request.rerank,
         )
     except Exception as exc:
         logger.error("retrieval failed for query=%r: %s", query[:80], exc)
@@ -138,6 +139,7 @@ async def query_codebase_sync(request: QueryRequest) -> QueryResponse:
             routine_type=request.routine_type,
             precision_type=request.precision_type,
             expand=request.expand,
+            rerank=request.rerank,
         )
     except Exception as exc:
         logger.error("retrieval failed for query=%r: %s", query[:80], exc)

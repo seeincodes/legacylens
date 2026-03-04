@@ -169,6 +169,8 @@ def discover_fortran_files(base_dir: str) -> list[str]:
 
 
 def build_chunk_text(chunk: dict) -> str:
+    from app.services.concept_map import get_concepts_for_stem, get_stem_from_routine_name
+
     desc = extract_description(chunk["content"])
     clean_content = strip_html_noise(chunk["content"])
 
@@ -180,6 +182,12 @@ def build_chunk_text(chunk: dict) -> str:
     ]
     if desc:
         prefix_parts.append(f"Description: {desc}")
+
+    name = chunk.get("subroutine_name") or ""
+    stem = get_stem_from_routine_name(name)
+    concepts = get_concepts_for_stem(stem)
+    if concepts:
+        prefix_parts.append(f"Concepts: {', '.join(concepts)}")
 
     prefix = " | ".join(prefix_parts)
     return f"{prefix}\n\n{clean_content}"

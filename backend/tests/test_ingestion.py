@@ -183,3 +183,25 @@ def test_build_chunk_text_includes_description():
     assert "Description:" in text
     # Should NOT contain htmlonly noise
     assert "htmlonly" not in text
+
+
+def test_build_chunk_text_includes_concepts():
+    """build_chunk_text should add Concepts from the concept map for known routines."""
+    chunks = parse_fortran_file(FORTRAN_WITH_BRIEF_DESC, "SRC/dgesv.f")
+    # DGESV has stem GESV which is in the concept map
+    text = build_chunk_text(chunks[0])
+    assert "Concepts:" in text
+    assert "linear" in text.lower()
+
+
+def test_build_chunk_text_no_concepts_for_unknown():
+    """build_chunk_text should omit Concepts for routines not in the map."""
+    chunk = {
+        "file_path": "SRC/test.f",
+        "subroutine_name": "XYZABC",
+        "routine_type": "computational",
+        "precision_type": "unknown",
+        "content": "      SUBROUTINE XYZABC(N)\n      END",
+    }
+    text = build_chunk_text(chunk)
+    assert "Concepts:" not in text
