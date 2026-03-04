@@ -284,6 +284,40 @@ def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
                         break
         cur.close()
 
+    # Expand call graph: for concept-boosted routines, inject routines they call
+    boosted_names = set()
+    for r in boosted:
+        if r.get("rrf_score", 0) >= 999.0:
+            meta = r.get("metadata") or {}
+            calls = meta.get("calls", []) if isinstance(meta, dict) else []
+            boosted_names.update(calls)
+
+    if boosted_names:
+        existing_names = {(r.get("subroutine_name") or "").upper() for r in boosted}
+        names_to_fetch = [n for n in boosted_names if n.upper() not in existing_names]
+        if names_to_fetch:
+            with get_connection() as conn:
+                cur = conn.cursor()
+                for name in names_to_fetch[:5]:
+                    cur.execute(
+                        """SELECT id, file_path, line_start, line_end, subroutine_name,
+                                  routine_type, content, metadata
+                           FROM code_chunks
+                           WHERE UPPER(subroutine_name) = UPPER(%s)
+                           LIMIT 1""",
+                        (name,),
+                    )
+                    row = cur.fetchone()
+                    if row and row[0] not in existing_ids:
+                        boosted.append({
+                            "id": row[0], "file_path": row[1], "line_start": row[2],
+                            "line_end": row[3], "subroutine_name": row[4],
+                            "routine_type": row[5], "content": row[6],
+                            "metadata": row[7], "rrf_score": 500.0,
+                        })
+                        existing_ids.add(row[0])
+                cur.close()
+
     return boosted
 
 
@@ -305,16 +339,24 @@ def llm_rerank(query: str, candidates: list[dict], top_k: int = 5) -> list[dict]
         name = r.get("subroutine_name", "unknown")
         rtype = r.get("routine_type", "")
         content = r.get("content", "")
-        # Extract first comment line as a brief description
-        brief = ""
-        for line in content.split("\n"):
-            stripped = line.strip()
-            if stripped.startswith("*") or stripped.startswith("!"):
-                cleaned = stripped.lstrip("*! ").strip()
-                if len(cleaned) > 10:
-                    brief = cleaned[:120]
-                    break
-        descriptions.append(f"{i}: {name} ({rtype}) - {brief}")
+        # Use extract_description for a rich description
+        from app.services.ingestion import extract_description
+        desc = extract_description(content)
+        if not desc:
+            # Fallback: first comment line
+            for line in content.split("\n"):
+                stripped = line.strip()
+                if stripped.startswith("*") or stripped.startswith("!"):
+                    cleaned = stripped.lstrip("*! ").strip()
+                    if len(cleaned) > 10:
+                        desc = cleaned[:120]
+                        break
+        # Add concept terms if available
+        from app.services.concept_map import get_concepts_for_stem, get_stem_from_routine_name
+        stem = get_stem_from_routine_name(name)
+        concepts = get_concepts_for_stem(stem)
+        concept_str = f" [{', '.join(concepts[:3])}]" if concepts else ""
+        descriptions.append(f"{i}: {name} ({rtype}) - {desc[:150]}{concept_str}")
 
     try:
         response = client.messages.create(
@@ -324,7 +366,9 @@ def llm_rerank(query: str, candidates: list[dict], top_k: int = 5) -> list[dict]
                 "role": "user",
                 "content": (
                     f"Given the LAPACK/linear algebra query: \"{query}\"\n\n"
-                    f"Rank these routines by relevance (most relevant first). "
+                    f"Rank these routines by relevance. Include the primary routine "
+                    f"AND closely related routines (same algorithm family, called by "
+                    f"or calling the main routine). Put most relevant first. "
                     f"Return ONLY the indices as comma-separated numbers.\n\n"
                     + "\n".join(descriptions)
                 ),
@@ -344,6 +388,20 @@ def llm_rerank(query: str, candidates: list[dict], top_k: int = 5) -> list[dict]
             return candidates[:top_k]
 
         reranked = [candidates[i] for i in indices]
+
+        # Pin exact subroutine name matches at the front to prevent
+        # the re-ranker from accidentally dropping direct lookups.
+        query_upper = query.upper()
+        pinned = []
+        remaining = []
+        for r in reranked:
+            name = (r.get("subroutine_name") or "").upper()
+            if name and name in query_upper:
+                pinned.append(r)
+            else:
+                remaining.append(r)
+        reranked = pinned + remaining
+
         seen_ids = {r["id"] for r in reranked}
         for r in candidates:
             if len(reranked) >= top_k:

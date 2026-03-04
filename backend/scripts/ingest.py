@@ -48,6 +48,16 @@ def main():
     elapsed = time.time() - start
     print(f"Embedding complete in {elapsed:.1f}s")
 
+    print("Truncating existing chunks...")
+    import psycopg2
+    from app.config import settings
+    conn = psycopg2.connect(settings.database_url)
+    cur = conn.cursor()
+    cur.execute("TRUNCATE code_chunks")
+    conn.commit()
+    cur.close()
+    conn.close()
+
     print("Storing in database...")
     store_chunks(all_chunks, embeddings)
     print(f"Done! Stored {len(all_chunks)} chunks.")
