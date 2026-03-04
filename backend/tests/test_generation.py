@@ -40,8 +40,9 @@ def test_validate_references_keeps_valid_refs():
                      content="code", relevance_score=0.9),
     ]
     answer = "The routine is in [SRC/dgesv.f:1-50] and solves linear systems."
-    result = validate_references(answer, chunks)
+    result, has_unverified = validate_references(answer, chunks)
     assert "[SRC/dgesv.f:1-50]" in result
+    assert not has_unverified
 
 
 def test_validate_references_flags_invalid_refs():
@@ -51,12 +52,27 @@ def test_validate_references_flags_invalid_refs():
                      content="code", relevance_score=0.9),
     ]
     answer = "See [SRC/fake_file.f:99-100] for details."
-    result = validate_references(answer, chunks)
+    result, has_unverified = validate_references(answer, chunks)
     assert "[SRC/fake_file.f:99-100]" not in result or "(unverified)" in result
+    assert has_unverified
+
+
+def test_validate_references_line_range_outside_chunk():
+    """Citation with line range outside chunk's range should be flagged."""
+    chunks = [
+        ChunkResult(file_path="SRC/dgesv.f", line_start=1, line_end=50,
+                     subroutine_name="DGESV", routine_type="driver",
+                     content="code", relevance_score=0.9),
+    ]
+    answer = "See [SRC/dgesv.f:100-150] for details."
+    result, has_unverified = validate_references(answer, chunks)
+    assert "(unverified)" in result
+    assert has_unverified
 
 
 def test_validate_references_no_refs():
     chunks = []
     answer = "This answer has no file references."
-    result = validate_references(answer, chunks)
+    result, has_unverified = validate_references(answer, chunks)
     assert result == answer
+    assert not has_unverified

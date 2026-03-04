@@ -28,6 +28,7 @@ export default function Home() {
   const [hasSearched, setHasSearched] = useState(false);
   const [expandSearch, setExpandSearch] = useState(false);
   const [briefMode, setBriefMode] = useState(false);
+  const [hasUnverified, setHasUnverified] = useState(false);
   const [routineType, setRoutineType] = useState("");
   const [precisionType, setPrecisionType] = useState("");
 
@@ -38,6 +39,7 @@ export default function Home() {
     setQueryError("");
     setAnswer("");
     setChunks([]);
+    setHasUnverified(false);
 
     try {
       const response = await fetch(`${API_URL}/api/query`, {
@@ -88,6 +90,8 @@ export default function Home() {
             setAnswer((prev) => prev + data.token);
           } else if (data.type === "done") {
             setIsStreaming(false);
+            if (data.answer !== undefined) setAnswer(data.answer);
+            setHasUnverified(data.has_unverified === true);
           }
         }
       }
@@ -148,7 +152,7 @@ export default function Home() {
           onPrecisionTypeChange={setPrecisionType}
           disabled={isLoading}
         />
-        <AnswerPanel answer={answer} isStreaming={isStreaming} />
+        <AnswerPanel answer={answer} isStreaming={isStreaming} hasUnverified={hasUnverified} />
         <ResultsList
           chunks={chunks}
           isLoading={isLoading}

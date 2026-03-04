@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 
 from app.models.schemas import QueryRequest, QueryResponse
 from app.services.retrieval import search
-from app.services.generation import generate_answer, stream_answer
+from app.services.generation import generate_answer, stream_answer, validate_references
 
 logger = logging.getLogger("legacylens.query")
 
@@ -114,7 +114,8 @@ async def query_codebase(request: QueryRequest):
             full_answer = error_msg
         generation_ms = (time.perf_counter() - t_gen) * 1000
         total_ms = (time.perf_counter() - t_start) * 1000
-        yield f"data: {json.dumps({'type': 'done', 'answer': full_answer})}\n\n"
+        full_answer, has_unverified = validate_references(full_answer, chunks)
+        yield f"data: {json.dumps({'type': 'done', 'answer': full_answer, 'has_unverified': has_unverified})}\n\n"
         logger.info(
             "query=%r generation_ms=%.0f total_ms=%.0f",
             query, generation_ms, total_ms,

@@ -35,17 +35,40 @@ ALWAYS cite your source: include [file_path:line_start-line_end] for each snippe
 _REF_PATTERN = re.compile(r"\[([^\]]+?):(\d+)(?:-(\d+))?\]")
 
 
-def validate_references(answer: str, chunks: list[ChunkResult]) -> str:
-    """Strip or flag file:line references not found in provided chunks."""
-    valid_files = {c.file_path for c in chunks}
+def _normalize_path(p: str) -> str:
+    return p.replace("\\", "/").strip()
+
+
+def _ref_is_valid(file_path: str, line_a: int, line_b: int | None, chunks: list[ChunkResult]) -> bool:
+    """Check if citation (file, line_a, line_b) overlaps any chunk's range."""
+    norm_cited = _normalize_path(file_path)
+    line_end = line_b if line_b is not None else line_a
+
+    for c in chunks:
+        if _normalize_path(c.file_path) != norm_cited:
+            continue
+        # Cited range [line_a, line_end] overlaps chunk [c.line_start, c.line_end]
+        if line_a <= c.line_end and line_end >= c.line_start:
+            return True
+    return False
+
+
+def validate_references(answer: str, chunks: list[ChunkResult]) -> tuple[str, bool]:
+    """Validate file:line refs against chunks. Returns (answer, has_unverified)."""
+    has_unverified = False
 
     def _check_ref(match):
+        nonlocal has_unverified
         file_path = match.group(1)
-        if file_path in valid_files:
+        line_a = int(match.group(2))
+        line_b = int(match.group(3)) if match.group(3) else None
+        if _ref_is_valid(file_path, line_a, line_b, chunks):
             return match.group(0)
+        has_unverified = True
         return f"{match.group(0)} (unverified)"
 
-    return _REF_PATTERN.sub(_check_ref, answer)
+    result = _REF_PATTERN.sub(_check_ref, answer)
+    return result, has_unverified
 
 
 def build_context(chunks: list[ChunkResult]) -> str:
@@ -71,7 +94,8 @@ def generate_answer(query: str, chunks: list[ChunkResult], brief: bool = False) 
         messages=[{"role": "user", "content": f"Retrieved code context:\n\n{context}\n\nQuestion: {query}"}],
     )
     answer = message.content[0].text
-    return validate_references(answer, chunks)
+    answer, _ = validate_references(answer, chunks)
+    return answer
 
 
 async def stream_answer(query: str, chunks: list[ChunkResult], brief: bool = False):
