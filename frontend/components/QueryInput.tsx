@@ -33,8 +33,8 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, brief, on
             className="flex-1 px-4 py-2.5 text-base sm:text-lg rounded-lg border-2 transition-all"
             style={{
               fontFamily: "var(--font-architects-daughter)",
-              color: "var(--ink)",
-              background: "white",
+              color: isLoading ? "var(--ink-faint)" : "var(--ink)",
+              background: isLoading ? "var(--paper-dark)" : "white",
               borderColor: "var(--paper-grid)",
             }}
             disabled={isLoading}
@@ -66,8 +66,17 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, brief, on
           </button>
         </div>
 
-        {/* Example queries */}
+        {/* Suggestions — populate search bar only, don't auto-submit */}
         <div className="flex gap-2 mt-3 flex-wrap">
+          <span
+            className="text-xs w-full"
+            style={{
+              fontFamily: "var(--font-jetbrains-mono)",
+              color: "var(--ink-faint)",
+            }}
+          >
+            Suggestions:
+          </span>
           {[
             "What does DGESV do?",
             "How does LU factorization work?",
@@ -76,10 +85,7 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, brief, on
             <button
               key={example}
               type="button"
-              onClick={() => {
-                setQuery(example);
-                if (!isLoading) onSubmit(example);
-              }}
+              onClick={() => setQuery(example)}
               className="text-xs px-3 py-1 rounded-full transition-colors duration-150"
               style={{
                 fontFamily: "var(--font-jetbrains-mono)",

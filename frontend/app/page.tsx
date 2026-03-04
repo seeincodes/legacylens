@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import QueryInput from "@/components/QueryInput";
 import AnswerPanel from "@/components/AnswerPanel";
 import ResultsList from "@/components/ResultsList";
@@ -113,8 +114,10 @@ export default function Home() {
   return (
     <main className="relative z-10 min-h-screen flex flex-col items-center px-4 py-12 gap-6">
       {/* Header */}
-      <div className="text-center mt-2 mb-1">
-        <h1
+      <div className="flex items-start justify-center mt-2 mb-1 gap-4">
+        <div className="flex-1" />
+        <div className="text-center flex-1">
+          <h1
           className="text-5xl md:text-6xl"
           style={{
             fontFamily: "var(--font-architects-daughter)",
@@ -133,25 +136,43 @@ export default function Home() {
         >
           Explore the LAPACK Fortran codebase with natural language
         </p>
+        </div>
+        <Link
+          href="/stats"
+          className="flex-1 text-right px-4 py-2 rounded-lg font-bold text-base"
+          style={{
+            fontFamily: "var(--font-architects-daughter)",
+            color: "white",
+            background: "var(--chalk-blue)",
+            border: "2px solid var(--chalk-blue)",
+            boxShadow: "2px 2px 0 rgba(74,111,165,0.3)",
+          }}
+        >
+          Stats
+        </Link>
       </div>
 
       {/* Query + Results */}
       <div className="w-full max-w-3xl flex flex-col gap-5">
-        <QueryInput
-          onSubmit={handleQuery}
-          isLoading={isLoading}
-          expand={expandSearch}
-          onExpandChange={setExpandSearch}
-          brief={briefMode}
-          onBriefChange={setBriefMode}
-        />
-        <SearchFilters
-          routineType={routineType}
-          precisionType={precisionType}
-          onRoutineTypeChange={setRoutineType}
-          onPrecisionTypeChange={setPrecisionType}
-          disabled={isLoading}
-        />
+        <div
+          className={`flex flex-col gap-5 transition-opacity duration-200 ${isLoading ? "opacity-50 pointer-events-none" : ""}`}
+        >
+          <QueryInput
+            onSubmit={handleQuery}
+            isLoading={isLoading}
+            expand={expandSearch}
+            onExpandChange={setExpandSearch}
+            brief={briefMode}
+            onBriefChange={setBriefMode}
+          />
+          <SearchFilters
+            routineType={routineType}
+            precisionType={precisionType}
+            onRoutineTypeChange={setRoutineType}
+            onPrecisionTypeChange={setPrecisionType}
+            disabled={isLoading}
+          />
+        </div>
         <AnswerPanel answer={answer} isStreaming={isStreaming} hasUnverified={hasUnverified} />
         <ResultsList
           chunks={chunks}

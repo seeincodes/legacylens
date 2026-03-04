@@ -47,11 +47,11 @@ export default function SearchFilters({
             value={routineType}
             onChange={(e) => onRoutineTypeChange(e.target.value)}
             disabled={disabled}
-            className="px-3 py-2 rounded-lg border-2 text-sm"
+            className="px-3 py-2 rounded-lg border-2 text-sm transition-colors"
             style={{
               fontFamily: "var(--font-crimson-pro)",
-              color: "var(--ink)",
-              background: "white",
+              color: disabled ? "var(--ink-faint)" : "var(--ink)",
+              background: disabled ? "var(--paper-dark)" : "white",
               borderColor: "var(--paper-grid)",
             }}
           >
@@ -79,11 +79,11 @@ export default function SearchFilters({
             value={precisionType}
             onChange={(e) => onPrecisionTypeChange(e.target.value)}
             disabled={disabled}
-            className="px-3 py-2 rounded-lg border-2 text-sm"
+            className="px-3 py-2 rounded-lg border-2 text-sm transition-colors"
             style={{
               fontFamily: "var(--font-crimson-pro)",
-              color: "var(--ink)",
-              background: "white",
+              color: disabled ? "var(--ink-faint)" : "var(--ink)",
+              background: disabled ? "var(--paper-dark)" : "white",
               borderColor: "var(--paper-grid)",
             }}
           >
