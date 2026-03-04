@@ -131,6 +131,17 @@ python -m eval.run_eval --top-k 10         # evaluate at top-10
 
 Metrics: Precision@K, Recall@K, MRR, Hit Rate, per-category breakdown, and latency percentiles.
 
+Run the **RAG answer pipeline** eval (20 golden queries, full retrieval + generation):
+
+```bash
+cd backend
+python -m eval.run_rag_eval                    # full RAG eval
+python -m eval.run_rag_eval --expand --rerank  # with query expansion + rerank
+python -m eval.run_rag_eval --output results.json
+```
+
+Metrics: fact pass rate, citation validity, retrieval hit rate, full pass rate, latency per query.
+
 ## Performance
 
 | Metric              | Result                                            |
