@@ -6,6 +6,8 @@ from app.models.understand_schemas import (
     DependencyRequest, DependencyResponse,
     SimilarRequest, SimilarResponse,
     DocumentRequest, DocumentResponse,
+    TranslateRequest, TranslateResponse,
+    UseCasesRequest, UseCasesResponse,
 )
 from app.services.understanding import (
     explain_routine,
@@ -13,6 +15,8 @@ from app.services.understanding import (
     build_dependency_graph,
     find_similar_routines,
     generate_documentation,
+    translate_routine,
+    get_use_cases,
 )
 
 router = APIRouter(prefix="/understand", tags=["understand"])
@@ -58,6 +62,24 @@ async def similar(request: SimilarRequest):
 async def document(request: DocumentRequest):
     """Generate structured documentation for a subroutine."""
     result = generate_documentation(request.subroutine_name)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Routine '{request.subroutine_name}' not found")
+    return result
+
+
+@router.post("/translate", response_model=TranslateResponse)
+async def translate(request: TranslateRequest):
+    """Generate equivalent NumPy/SciPy code for a routine."""
+    result = translate_routine(request.subroutine_name)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Routine '{request.subroutine_name}' not found")
+    return result
+
+
+@router.post("/use-cases", response_model=UseCasesResponse)
+async def use_cases(request: UseCasesRequest):
+    """Get use case scenarios for when to use this routine."""
+    result = get_use_cases(request.subroutine_name)
     if not result:
         raise HTTPException(status_code=404, detail=f"Routine '{request.subroutine_name}' not found")
     return result

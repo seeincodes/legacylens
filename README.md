@@ -12,7 +12,7 @@ RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natura
 - **Hybrid Search** — Vector similarity (pgvector HNSW) + full-text keyword search (PostgreSQL tsvector) fused with Reciprocal Rank Fusion, returning normalized 0–1 relevance scores
 - **Streaming Answers** — Claude Haiku generates explanations with inline `[SRC/file.f:line-line]` citations streamed via Server-Sent Events
 - **Query Expansion** — Optional LLM-powered rephrasing into 2–3 query variants for higher recall
-- **Code Understanding** — Per-routine actions: Explain, ELI5, Dependency tracing, Similar routine search, Documentation generation
+- **Code Understanding** — Per-routine actions: Explain, ELI5, Dependency tracing (list + interactive graph), Similar routine search, Documentation generation, **Translate** (Python/NumPy equivalent), **Use cases** (when to use this routine)
 - **Metadata Filtering** — Filter by routine type (BLAS, driver, computational) and precision (single, double, complex)
 - **Fortran Syntax Highlighting** — Custom tokenizer for Fortran keywords, strings, numbers, and comments
 - **Evaluation Suite** — 25-query ground truth benchmark measuring Precision@K, Recall@K, MRR, and per-query latency
@@ -102,6 +102,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `POST` | `/api/understand/dependencies` | Trace call dependency chains             |
 | `POST` | `/api/understand/similar`      | Find similar routines by embedding       |
 | `POST` | `/api/understand/document`     | Generate structured documentation        |
+| `POST` | `/api/understand/translate`     | Generate Python/NumPy equivalent          |
+| `POST` | `/api/understand/use-cases`    | Get use case scenarios                   |
 | `GET`  | `/api/health`                  | Health check                             |
 
 ## Evaluation

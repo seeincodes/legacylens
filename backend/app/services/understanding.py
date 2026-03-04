@@ -1,4 +1,5 @@
 import json
+import re
 
 import anthropic
 import openai
@@ -14,18 +15,35 @@ def _get_conn():
     return conn
 
 
-def lookup_routine(name: str) -> dict | None:
+def _truncate_for_llm(content: str, max_chars: int = 6000) -> str:
+    """Truncate routine content to reduce tokens and speed up LLM calls."""
+    if len(content) <= max_chars:
+        return content
+    return content[:max_chars] + "\n... [truncated]"
+
+
+def lookup_routine(name: str, include_embedding: bool = True) -> dict | None:
     """Find a routine by name (case-insensitive). Returns dict with all fields or None."""
     conn = _get_conn()
     cur = conn.cursor()
-    cur.execute(
-        """SELECT id, file_path, line_start, line_end, subroutine_name,
-                  routine_type, content, metadata, embedding
-           FROM code_chunks
-           WHERE subroutine_name ILIKE %s
-           LIMIT 1""",
-        (name,),
-    )
+    if include_embedding:
+        cur.execute(
+            """SELECT id, file_path, line_start, line_end, subroutine_name,
+                      routine_type, content, metadata, embedding
+               FROM code_chunks
+               WHERE subroutine_name ILIKE %s
+               LIMIT 1""",
+            (name,),
+        )
+    else:
+        cur.execute(
+            """SELECT id, file_path, line_start, line_end, subroutine_name,
+                      routine_type, content, metadata
+               FROM code_chunks
+               WHERE subroutine_name ILIKE %s
+               LIMIT 1""",
+            (name,),
+        )
     row = cur.fetchone()
     cur.close()
     conn.close()
@@ -34,7 +52,7 @@ def lookup_routine(name: str) -> dict | None:
         return None
 
     meta = row[7] if isinstance(row[7], dict) else (json.loads(row[7]) if row[7] else {})
-    return {
+    out = {
         "id": row[0],
         "file_path": row[1],
         "line_start": row[2],
@@ -44,20 +62,25 @@ def lookup_routine(name: str) -> dict | None:
         "content": row[6],
         "metadata": meta,
         "calls": meta.get("calls", []),
-        "embedding": row[8],
     }
+    if include_embedding:
+        out["embedding"] = row[8]
+    else:
+        out["embedding"] = None
+    return out
 
 
-def _generate_explanation(name: str, system_prompt: str) -> dict | None:
+def _generate_explanation(name: str, system_prompt: str, max_tokens: int = 768) -> dict | None:
     """Look up a routine and generate an explanation via Claude."""
-    routine = lookup_routine(name)
+    routine = lookup_routine(name, include_embedding=False)
     if not routine:
         return None
 
+    content = _truncate_for_llm(routine["content"])
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
+        max_tokens=max_tokens,
         system=system_prompt,
         messages=[{
             "role": "user",
@@ -65,7 +88,7 @@ def _generate_explanation(name: str, system_prompt: str) -> dict | None:
                 f"Subroutine: {routine['subroutine_name']}\n"
                 f"File: {routine['file_path']}:{routine['line_start']}-{routine['line_end']}\n"
                 f"Type: {routine['routine_type']}\n\n"
-                f"```fortran\n{routine['content']}\n```"
+                f"```fortran\n{content}\n```"
             ),
         }],
     )
@@ -87,7 +110,8 @@ def explain_routine(name: str) -> dict | None:
         name,
         (
             "You are a Fortran and LAPACK expert. Explain the following subroutine in plain English. "
-            "Cover: what it does, its parameters, the algorithm used, and when you'd use it. Be concise."
+            "Cover: what it does, its parameters, the algorithm used, and when you'd use it. "
+            "Be concise. Keep under 300 words."
         ),
     )
 
@@ -108,12 +132,13 @@ def explain_routine_eli5(name: str) -> dict | None:
             "- End with a 'Why do we care?' section explaining why it matters, using kid-friendly examples.\n"
             "- Keep the whole explanation under 200 words."
         ),
+        max_tokens=512,
     )
 
 
 def build_dependency_graph(name: str, max_depth: int = 3) -> dict | None:
     """BFS traversal of call chains using metadata.calls."""
-    root = lookup_routine(name)
+    root = lookup_routine(name, include_embedding=False)
     if not root:
         return None
 
@@ -206,14 +231,15 @@ def find_similar_routines(name: str, top_k: int = 5) -> dict | None:
 
 def generate_documentation(name: str) -> dict | None:
     """Generate structured documentation for a routine via Claude."""
-    routine = lookup_routine(name)
+    routine = lookup_routine(name, include_embedding=False)
     if not routine:
         return None
 
+    content = _truncate_for_llm(routine["content"])
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=2048,
+        max_tokens=1536,
         system=(
             "You are a Fortran and LAPACK documentation expert. Generate structured documentation "
             "for the following subroutine. Include these sections:\n"
@@ -222,7 +248,7 @@ def generate_documentation(name: str) -> dict | None:
             "3. ALGORITHM - Step-by-step explanation of the algorithm\n"
             "4. RETURN VALUES - What INFO values mean\n"
             "5. DEPENDENCIES - Called routines and their roles\n"
-            "Format in clean markdown."
+            "Format in clean markdown. Be concise."
         ),
         messages=[{
             "role": "user",
@@ -231,7 +257,7 @@ def generate_documentation(name: str) -> dict | None:
                 f"File: {routine['file_path']}:{routine['line_start']}-{routine['line_end']}\n"
                 f"Type: {routine['routine_type']}\n"
                 f"Calls: {', '.join(routine['calls']) if routine['calls'] else 'None'}\n\n"
-                f"```fortran\n{routine['content']}\n```"
+                f"```fortran\n{content}\n```"
             ),
         }],
     )
@@ -239,4 +265,79 @@ def generate_documentation(name: str) -> dict | None:
     return {
         "subroutine_name": routine["subroutine_name"],
         "documentation": message.content[0].text,
+    }
+
+
+def translate_routine(name: str) -> dict | None:
+    """Generate equivalent NumPy/SciPy code for a routine."""
+    routine = lookup_routine(name, include_embedding=False)
+    if not routine:
+        return None
+
+    content = _truncate_for_llm(routine["content"])
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1536,
+        system=(
+            "You are a Fortran and NumPy/SciPy expert. Generate equivalent Python code for the LAPACK routine. "
+            "Include: (1) import statements (numpy, scipy.linalg), (2) example usage with sample data, "
+            "(3) brief explanation of the mapping (Fortran params → Python args). "
+            "Use code blocks with ```python. Be practical and runnable. Be concise."
+        ),
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Subroutine: {routine['subroutine_name']}\n"
+                f"File: {routine['file_path']}:{routine['line_start']}-{routine['line_end']}\n"
+                f"Type: {routine['routine_type']}\n"
+                f"Calls: {', '.join(routine['calls']) if routine['calls'] else 'None'}\n\n"
+                f"```fortran\n{content}\n```"
+            ),
+        }],
+    )
+
+    text = message.content[0].text
+    code_match = re.search(r"```python\n(.*?)```", text, re.DOTALL)
+    code = code_match.group(1).strip() if code_match else ""
+    explanation = re.sub(r"```python\n.*?```", "", text, flags=re.DOTALL).strip() if code_match else text
+    return {
+        "subroutine_name": routine["subroutine_name"],
+        "code": code,
+        "explanation": explanation or "See code below.",
+    }
+
+
+def get_use_cases(name: str) -> dict | None:
+    """Generate use case scenarios and when to use this routine."""
+    routine = lookup_routine(name, include_embedding=False)
+    if not routine:
+        return None
+
+    content = _truncate_for_llm(routine["content"])
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=512,
+        system=(
+            "You are a Fortran and LAPACK expert. Describe when a developer would use this routine. "
+            "Include: typical use cases, calling patterns, when to prefer over alternatives. "
+            "Use markdown. Be concise. Keep under 250 words."
+        ),
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Subroutine: {routine['subroutine_name']}\n"
+                f"File: {routine['file_path']}:{routine['line_start']}-{routine['line_end']}\n"
+                f"Type: {routine['routine_type']}\n"
+                f"Calls: {', '.join(routine['calls']) if routine['calls'] else 'None'}\n\n"
+                f"```fortran\n{content}\n```"
+            ),
+        }],
+    )
+
+    return {
+        "subroutine_name": routine["subroutine_name"],
+        "use_cases": message.content[0].text,
+        "typical_callers": [],
     }

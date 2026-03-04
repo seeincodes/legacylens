@@ -314,3 +314,19 @@ input[type="text"]:focus {
   background: transparent;
   color: inherit;
 }
+
+/* React Flow overrides for chalk theme */
+.react-flow {
+  --xy-background-color: var(--paper);
+  --xy-node-background-color-default: var(--chalk-blue-light);
+  --xy-node-border-default: 2px solid var(--chalk-blue);
+  --xy-node-border-radius-default: 8px;
+  --xy-edge-stroke-default: var(--paper-grid);
+  --xy-edge-stroke-width-default: 2;
+}
+.react-flow .react-flow__node {
+  font-family: var(--font-jetbrains-mono) !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}

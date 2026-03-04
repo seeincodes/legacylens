@@ -40,6 +40,8 @@ const UNDERSTAND_BUTTONS: { feature: UnderstandFeature; label: string; color: st
   { feature: "dependencies", label: "Deps", color: "var(--chalk-purple)", bg: "var(--chalk-purple-light)" },
   { feature: "similar", label: "Similar", color: "var(--chalk-green)", bg: "var(--chalk-green-light)" },
   { feature: "document", label: "Docs", color: "var(--chalk-amber)", bg: "var(--chalk-amber-light)" },
+  { feature: "translate", label: "Translate", color: "var(--chalk-green)", bg: "var(--chalk-green-light)" },
+  { feature: "use-cases", label: "Use cases", color: "var(--chalk-amber)", bg: "var(--chalk-amber-light)" },
 ];
 
 const ENDPOINT_MAP: Record<UnderstandFeature, string> = {
@@ -48,6 +50,8 @@ const ENDPOINT_MAP: Record<UnderstandFeature, string> = {
   dependencies: "/api/understand/dependencies",
   similar: "/api/understand/similar",
   document: "/api/understand/document",
+  translate: "/api/understand/translate",
+  "use-cases": "/api/understand/use-cases",
 };
 
 interface UnderstandState {
@@ -399,7 +403,7 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
               ) : (
                 <UnderstandPanel
                   feature={uState.feature}
-                  result={uState.result!}
+                  result={uState.result}
                   isLoading={uState.isLoading}
                 />
               )

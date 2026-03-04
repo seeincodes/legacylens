@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import DependencyGraphView from "./DependencyGraphView";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -46,17 +47,31 @@ interface DocumentData {
   documentation: string;
 }
 
-export type UnderstandFeature = "explain" | "eli5" | "dependencies" | "similar" | "document";
+interface TranslateData {
+  subroutine_name: string;
+  code: string;
+  explanation: string;
+}
+
+interface UseCasesData {
+  subroutine_name: string;
+  use_cases: string;
+  typical_callers: string[];
+}
+
+export type UnderstandFeature = "explain" | "eli5" | "dependencies" | "similar" | "document" | "translate" | "use-cases";
 
 export type UnderstandResult =
   | { feature: "explain"; data: ExplainData }
   | { feature: "eli5"; data: ExplainData }
   | { feature: "dependencies"; data: DependencyData }
   | { feature: "similar"; data: SimilarData }
-  | { feature: "document"; data: DocumentData };
+  | { feature: "document"; data: DocumentData }
+  | { feature: "translate"; data: TranslateData }
+  | { feature: "use-cases"; data: UseCasesData };
 
 interface UnderstandPanelProps {
-  result: UnderstandResult;
+  result: UnderstandResult | null;
   isLoading: boolean;
   feature: UnderstandFeature;
 }
@@ -228,37 +243,77 @@ function ExplainView({ data }: { data: ExplainData }) {
 }
 
 function DependencyView({ data }: { data: DependencyData }) {
+  const [viewMode, setViewMode] = useState<"list" | "graph">("graph");
+
   return (
-    <div className="space-y-1">
-      {data.nodes.map((node, i) => {
-        const typeStyle = TYPE_STYLES[node.routine_type || ""] || { color: "var(--ink-light)", bg: "var(--paper-dark)" };
-        return (
-          <div key={i} className="flex items-center gap-2 py-1"
-            style={{ paddingLeft: `${node.depth * 24}px` }}>
-            {node.depth > 0 && (
-              <span style={{ color: "var(--ink-faint)", fontFamily: "var(--font-jetbrains-mono)", fontSize: "0.75rem" }}>
-                └─
-              </span>
-            )}
-            <span className="text-sm font-bold"
-              style={{ fontFamily: "var(--font-architects-daughter)", color: "var(--ink)" }}>
-              {node.name}
-            </span>
-            {node.routine_type && (
-              <span className="math-tag"
-                style={{ color: typeStyle.color, background: typeStyle.bg, border: `1px solid ${typeStyle.color}` }}>
-                {node.routine_type}
-              </span>
-            )}
-            {node.file_path && (
-              <span className="text-xs"
-                style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink-faint)" }}>
-                {node.file_path}
-              </span>
-            )}
-          </div>
-        );
-      })}
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-xs" style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-faint)" }}>
+          View:
+        </span>
+        <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "var(--paper-grid)" }}>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            className="px-3 py-1.5 text-xs transition-colors"
+            style={{
+              fontFamily: "var(--font-jetbrains-mono)",
+              background: viewMode === "list" ? "var(--chalk-blue)" : "var(--paper)",
+              color: viewMode === "list" ? "white" : "var(--ink-light)",
+            }}
+          >
+            List
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("graph")}
+            className="px-3 py-1.5 text-xs transition-colors border-l"
+            style={{
+              fontFamily: "var(--font-jetbrains-mono)",
+              borderColor: "var(--paper-grid)",
+              background: viewMode === "graph" ? "var(--chalk-blue)" : "var(--paper)",
+              color: viewMode === "graph" ? "white" : "var(--ink-light)",
+            }}
+          >
+            Graph
+          </button>
+        </div>
+      </div>
+      {viewMode === "list" ? (
+        <div className="space-y-1">
+          {data.nodes.map((node, i) => {
+            const typeStyle = TYPE_STYLES[node.routine_type || ""] || { color: "var(--ink-light)", bg: "var(--paper-dark)" };
+            return (
+              <div key={i} className="flex items-center gap-2 py-1"
+                style={{ paddingLeft: `${node.depth * 24}px` }}>
+                {node.depth > 0 && (
+                  <span style={{ color: "var(--ink-faint)", fontFamily: "var(--font-jetbrains-mono)", fontSize: "0.75rem" }}>
+                    └─
+                  </span>
+                )}
+                <span className="text-sm font-bold"
+                  style={{ fontFamily: "var(--font-architects-daughter)", color: "var(--ink)" }}>
+                  {node.name}
+                </span>
+                {node.routine_type && (
+                  <span className="math-tag"
+                    style={{ color: typeStyle.color, background: typeStyle.bg, border: `1px solid ${typeStyle.color}` }}>
+                    {node.routine_type}
+                  </span>
+                )}
+                {node.file_path && (
+                  <span className="text-xs"
+                    style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink-faint)" }}>
+                    {node.file_path}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <DependencyGraphView key={data.root} data={data} />
+      )}
     </div>
   );
 }
@@ -344,6 +399,44 @@ function DocumentView({ data }: { data: DocumentData }) {
   );
 }
 
+function TranslateView({ data }: { data: TranslateData }) {
+  return (
+    <div className="space-y-3">
+      {data.explanation && (
+        <div className="answer-markdown text-sm leading-relaxed" style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink)" }}>
+          {renderMarkdown(data.explanation)}
+        </div>
+      )}
+      {data.code && (
+        <div className="answer-codeblock">
+          <div className="answer-code-lang">python</div>
+          <pre><code>{data.code}</code></pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UseCasesView({ data }: { data: UseCasesData }) {
+  return (
+    <div className="space-y-3">
+      <div className="answer-markdown text-sm leading-relaxed" style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink)" }}>
+        {renderMarkdown(data.use_cases)}
+      </div>
+      {data.typical_callers.length > 0 && (
+        <div>
+          <span className="text-xs font-bold" style={{ fontFamily: "var(--font-architects-daughter)", color: "var(--ink-light)" }}>Typical callers:</span>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {data.typical_callers.map((c) => (
+              <span key={c} className="math-tag" style={{ color: "var(--chalk-purple)", background: "var(--chalk-purple-light)", border: "1px solid var(--chalk-purple)" }}>{c}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Loading state ──
 
 const LOADING_LABELS: Record<UnderstandFeature, string> = {
@@ -352,6 +445,8 @@ const LOADING_LABELS: Record<UnderstandFeature, string> = {
   dependencies: "Tracing call chain…",
   similar: "Finding similar routines…",
   document: "Generating documentation…",
+  translate: "Generating Python equivalent…",
+  "use-cases": "Finding use cases…",
 };
 
 // ── Main component ──
@@ -391,6 +486,8 @@ export default function UnderstandPanel({ result, isLoading, feature }: Understa
           {result.feature === "dependencies" && <DependencyView data={result.data} />}
           {result.feature === "similar" && <SimilarView data={result.data} />}
           {result.feature === "document" && <DocumentView data={result.data} />}
+          {result.feature === "translate" && <TranslateView data={result.data} />}
+          {result.feature === "use-cases" && <UseCasesView data={result.data} />}
         </>
       ) : null}
     </div>

@@ -25,6 +25,14 @@ class DocumentRequest(BaseModel):
     subroutine_name: str
 
 
+class TranslateRequest(BaseModel):
+    subroutine_name: str
+
+
+class UseCasesRequest(BaseModel):
+    subroutine_name: str
+
+
 # --- Response models ---
 
 class ExplainResponse(BaseModel):
@@ -77,3 +85,15 @@ class SimilarResponse(BaseModel):
 class DocumentResponse(BaseModel):
     subroutine_name: str
     documentation: str
+
+
+class TranslateResponse(BaseModel):
+    subroutine_name: str
+    code: str
+    explanation: str
+
+
+class UseCasesResponse(BaseModel):
+    subroutine_name: str
+    use_cases: str
+    typical_callers: list[str] = []
