@@ -1,4 +1,7 @@
+import hashlib
+import json
 import re
+from collections import OrderedDict
 
 import anthropic
 
@@ -6,6 +9,32 @@ from app.config import settings
 from app.models.schemas import ChunkResult
 
 _client = None
+
+# ── Answer cache (LRU, max 512 entries) ──────────────────
+_ANSWER_CACHE_MAX = 512
+_answer_cache: OrderedDict[str, dict] = OrderedDict()
+
+
+def _answer_cache_key(query: str, chunks: list[ChunkResult], brief: bool) -> str:
+    chunk_ids = [(c.file_path, c.line_start, c.line_end) for c in chunks]
+    raw = json.dumps([query, chunk_ids, brief])
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def get_cached_answer(query: str, chunks: list[ChunkResult], brief: bool) -> str | None:
+    key = _answer_cache_key(query, chunks, brief)
+    if key in _answer_cache:
+        _answer_cache.move_to_end(key)
+        return _answer_cache[key]["answer"]
+    return None
+
+
+def _put_cached_answer(query: str, chunks: list[ChunkResult], brief: bool, answer: str) -> None:
+    key = _answer_cache_key(query, chunks, brief)
+    _answer_cache[key] = {"answer": answer}
+    _answer_cache.move_to_end(key)
+    while len(_answer_cache) > _ANSWER_CACHE_MAX:
+        _answer_cache.popitem(last=False)
 
 
 def _get_client():
@@ -71,22 +100,42 @@ def validate_references(answer: str, chunks: list[ChunkResult]) -> tuple[str, bo
     return result, has_unverified
 
 
+_MAX_CONTENT_LINES = 100
+_MAX_CONTENT_CHARS = 3000
+
+
+def _truncate_content(content: str) -> str:
+    """Truncate chunk content to reduce LLM input size."""
+    lines = content.split("\n")
+    if len(lines) > _MAX_CONTENT_LINES:
+        lines = lines[:_MAX_CONTENT_LINES]
+        lines.append(f"... ({len(content.split(chr(10))) - _MAX_CONTENT_LINES} more lines)")
+    text = "\n".join(lines)
+    if len(text) > _MAX_CONTENT_CHARS:
+        text = text[:_MAX_CONTENT_CHARS] + "\n... (truncated)"
+    return text
+
+
 def build_context(chunks: list[ChunkResult]) -> str:
     parts = []
     for i, chunk in enumerate(chunks, 1):
         parts.append(
             f"--- Result {i}: {chunk.file_path}:{chunk.line_start}-{chunk.line_end} "
             f"(Subroutine: {chunk.subroutine_name}, Type: {chunk.routine_type}) ---\n"
-            f"{chunk.content}\n"
+            f"{_truncate_content(chunk.content)}\n"
         )
     return "\n".join(parts)
 
 
 def generate_answer(query: str, chunks: list[ChunkResult], brief: bool = False) -> str:
+    cached = get_cached_answer(query, chunks, brief)
+    if cached is not None:
+        return cached
+
     client = _get_client()
     context = build_context(chunks)
     system = BRIEF_SYSTEM_PROMPT if brief else SYSTEM_PROMPT
-    max_tokens = 256 if brief else 1024
+    max_tokens = 256 if brief else 512
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=max_tokens,
@@ -95,14 +144,22 @@ def generate_answer(query: str, chunks: list[ChunkResult], brief: bool = False) 
     )
     answer = message.content[0].text
     answer, _ = validate_references(answer, chunks)
+    _put_cached_answer(query, chunks, brief, answer)
     return answer
 
 
 async def stream_answer(query: str, chunks: list[ChunkResult], brief: bool = False):
+    # Check cache first — yield entire answer at once if cached
+    cached = get_cached_answer(query, chunks, brief)
+    if cached is not None:
+        yield cached
+        return
+
     client = _get_client()
     context = build_context(chunks)
     system = BRIEF_SYSTEM_PROMPT if brief else SYSTEM_PROMPT
-    max_tokens = 256 if brief else 1024
+    max_tokens = 256 if brief else 512
+    full_answer = ""
     with client.messages.stream(
         model="claude-haiku-4-5-20251001",
         max_tokens=max_tokens,
@@ -110,4 +167,9 @@ async def stream_answer(query: str, chunks: list[ChunkResult], brief: bool = Fal
         messages=[{"role": "user", "content": f"Retrieved code context:\n\n{context}\n\nQuestion: {query}"}],
     ) as stream:
         for text in stream.text_stream:
+            full_answer += text
             yield text
+
+    # Cache the completed answer for future requests
+    validated, _ = validate_references(full_answer, chunks)
+    _put_cached_answer(query, chunks, brief, validated)

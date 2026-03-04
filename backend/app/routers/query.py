@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 
 from app.models.schemas import QueryRequest, QueryResponse
 from app.services.retrieval import search
-from app.services.generation import generate_answer, stream_answer, validate_references
+from app.services.generation import generate_answer, get_cached_answer, stream_answer, validate_references
 
 logger = logging.getLogger("legacylens.query")
 
@@ -103,6 +103,16 @@ async def query_codebase(request: QueryRequest):
     async def event_stream():
         yield f"data: {json.dumps({'type': 'chunks', 'chunks': [c.model_dump() for c in chunks]})}\n\n"
         t_gen = time.perf_counter()
+
+        # Fast path: serve cached answer instantly
+        cached = get_cached_answer(query, chunks, brief=request.brief)
+        if cached is not None:
+            yield f"data: {json.dumps({'type': 'token', 'token': cached})}\n\n"
+            total_ms = (time.perf_counter() - t_start) * 1000
+            yield f"data: {json.dumps({'type': 'done', 'answer': cached, 'has_unverified': False})}\n\n"
+            logger.info("query=%r answer_cache_hit total_ms=%.0f", query, total_ms)
+            return
+
         full_answer = ""
         try:
             async for token in stream_answer(query, chunks, brief=request.brief):

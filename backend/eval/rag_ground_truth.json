@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1,
+    "query": "What does DGESV do?",
+    "expected_facts": ["solve", "linear", "LU", "equations", "factorization", "A*X", "B"],
+    "min_facts": 2,
+    "expected_routines": ["DGESV"],
+    "category": "routine_lookup"
+  },
+  {
+    "id": 2,
+    "query": "Find eigenvalue routines",
+    "expected_facts": ["eigenvalue", "DGEEV", "DSYEV", "matrix", "compute"],
+    "min_facts": 2,
+    "expected_routines": ["DGEEV", "DSYEV", "DGEEVX"],
+    "category": "concept_search"
+  },
+  {
+    "id": 3,
+    "query": "How does LU factorization work in LAPACK?",
+    "expected_facts": ["LU", "factorization", "pivoting", "DGETRF", "partial"],
+    "min_facts": 2,
+    "expected_routines": ["DGETRF"],
+    "category": "concept_search"
+  },
+  {
+    "id": 4,
+    "query": "What is DGEMM?",
+    "expected_facts": ["matrix", "multiplication", "BLAS", "DGEMM", "level 3"],
+    "min_facts": 2,
+    "expected_routines": ["DGEMM"],
+    "category": "routine_lookup"
+  },
+  {
+    "id": 5,
+    "query": "Solve least squares problem",
+    "expected_facts": ["least squares", "DGELS", "overdetermined", "QR", "linear"],
+    "min_facts": 2,
+    "expected_routines": ["DGELS", "DGELSS", "DGELSD"],
+    "category": "concept_search"
+  },
+  {
+    "id": 6,
+    "query": "Singular value decomposition",
+    "expected_facts": ["singular value", "SVD", "decomposition", "DGESVD", "DGESDD"],
+    "min_facts": 2,
+    "expected_routines": ["DGESVD", "DGESDD"],
+    "category": "concept_search"
+  },
+  {
+    "id": 7,
+    "query": "What does DTRSV do?",
+    "expected_facts": ["triangular", "solve", "system", "DTRSV", "BLAS"],
+    "min_facts": 2,
+    "expected_routines": ["DTRSV"],
+    "category": "routine_lookup"
+  },
+  {
+    "id": 8,
+    "query": "Cholesky factorization",
+    "expected_facts": ["Cholesky", "symmetric", "positive definite", "DPOTRF", "decomposition"],
+    "min_facts": 2,
+    "expected_routines": ["DPOTRF"],
+    "category": "concept_search"
+  },
+  {
+    "id": 9,
+    "query": "QR factorization routines",
+    "expected_facts": ["QR", "factorization", "DGEQRF", "DORGQR", "orthogonal"],
+    "min_facts": 2,
+    "expected_routines": ["DGEQRF", "DORGQR"],
+    "category": "concept_search"
+  },
+  {
+    "id": 10,
+    "query": "How to compute matrix inverse?",
+    "expected_facts": ["inverse", "DGETRI", "LU", "factorization", "matrix"],
+    "min_facts": 2,
+    "expected_routines": ["DGETRI"],
+    "category": "concept_search"
+  },
+  {
+    "id": 11,
+    "query": "What is DAXPY?",
+    "expected_facts": ["DAXPY", "BLAS", "level 1", "vector", "alpha", "y = alpha*x + y"],
+    "min_facts": 2,
+    "expected_routines": ["DAXPY"],
+    "category": "routine_lookup"
+  },
+  {
+    "id": 12,
+    "query": "Symmetric eigenvalue problem",
+    "expected_facts": ["symmetric", "eigenvalue", "DSYEV", "eigenvector", "matrix"],
+    "min_facts": 2,
+    "expected_routines": ["DSYEV", "DSYEVD"],
+    "category": "concept_search"
+  },
+  {
+    "id": 13,
+    "query": "Matrix norm computation",
+    "expected_facts": ["norm", "DLANGE", "DLANSY", "Frobenius", "matrix"],
+    "min_facts": 2,
+    "expected_routines": ["DLANGE", "DLANSY"],
+    "category": "concept_search"
+  },
+  {
+    "id": 14,
+    "query": "What does DGETRF do?",
+    "expected_facts": ["LU", "factorization", "DGETRF", "matrix", "pivoting"],
+    "min_facts": 2,
+    "expected_routines": ["DGETRF"],
+    "category": "routine_lookup"
+  },
+  {
+    "id": 15,
+    "query": "Tridiagonal eigenvalue solver",
+    "expected_facts": ["tridiagonal", "eigenvalue", "DSTEQR", "DSTEV", "matrix"],
+    "min_facts": 2,
+    "expected_routines": ["DSTEQR", "DSTEV"],
+    "category": "concept_search"
+  },
+  {
+    "id": 16,
+    "query": "Banded matrix solver",
+    "expected_facts": ["banded", "DGBSV", "DGBTRF", "solve", "linear"],
+    "min_facts": 2,
+    "expected_routines": ["DGBSV", "DGBTRF"],
+    "category": "concept_search"
+  },
+  {
+    "id": 17,
+    "query": "What is DNRM2?",
+    "expected_facts": ["norm", "euclidean", "vector", "DNRM2", "BLAS"],
+    "min_facts": 2,
+    "expected_routines": ["DNRM2"],
+    "category": "routine_lookup"
+  },
+  {
+    "id": 18,
+    "query": "Condition number estimation",
+    "expected_facts": ["condition", "DGECON", "DPOCON", "matrix", "estimate"],
+    "min_facts": 2,
+    "expected_routines": ["DGECON", "DPOCON"],
+    "category": "concept_search"
+  },
+  {
+    "id": 19,
+    "query": "Schur decomposition",
+    "expected_facts": ["Schur", "decomposition", "DGEES", "DHSEQR", "matrix"],
+    "min_facts": 2,
+    "expected_routines": ["DGEES", "DHSEQR"],
+    "category": "concept_search"
+  },
+  {
+    "id": 20,
+    "query": "How does LAPACK handle pivoting?",
+    "expected_facts": ["pivot", "DLASWP", "DGETRF", "row", "column"],
+    "min_facts": 2,
+    "expected_routines": ["DLASWP", "DGETRF"],
+    "category": "concept_search"
+  }
+]
