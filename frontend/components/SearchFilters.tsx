@@ -142,6 +142,7 @@ export default function SearchFilters({
             ))}
           </select>
         </label>
+
       </div>
     </div>
   );

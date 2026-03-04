@@ -16,6 +16,7 @@ interface Chunk {
   line_end: number;
   subroutine_name: string | null;
   routine_type: string | null;
+  blas_level: string | null;
   content: string;
   relevance_score: number;
   relevance_label: string;
@@ -259,6 +260,19 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
                     }}
                   >
                     {chunk.routine_type}
+                  </span>
+                )}
+
+                {chunk.blas_level && (
+                  <span
+                    className="math-tag"
+                    style={{
+                      color: "var(--chalk-purple)",
+                      background: "var(--chalk-purple-light)",
+                      border: "1px solid var(--chalk-purple)",
+                    }}
+                  >
+                    L{chunk.blas_level}
                   </span>
                 )}
               </div>

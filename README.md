@@ -13,9 +13,21 @@ RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natura
 - **Streaming Answers** — Claude Haiku generates explanations with inline `[SRC/file.f:line-line]` citations streamed via Server-Sent Events
 - **Query Expansion** — Optional LLM-powered rephrasing into 2–3 query variants for higher recall
 - **Code Understanding** — Per-routine actions: Explain, ELI5, Dependency tracing (list + interactive graph), Similar routine search, Documentation generation, **Translate** (Python/NumPy equivalent), **Use cases** (when to use this routine)
-- **Metadata Filtering** — Filter by routine type (BLAS, driver, computational) and precision (single, double, complex)
+- **Metadata Filtering** — Filter by routine type (BLAS, driver, computational), BLAS level (1: vector, 2: matrix-vector, 3: matrix-matrix), and precision (single, double, complex)
 - **Fortran Syntax Highlighting** — Custom tokenizer for Fortran keywords, strings, numbers, and comments
 - **Evaluation Suite** — 25-query ground truth benchmark measuring Precision@K, Recall@K, MRR, and per-query latency
+
+## BLAS Coverage
+
+LegacyLens indexes the complete Reference BLAS implementation (159 files) alongside LAPACK core routines. BLAS routines are classified by level:
+
+| Level | Operations | Examples | Count |
+|-------|-----------|----------|-------|
+| **Level 1** | Vector-vector | AXPY, DOT, SCAL, NRM2, SWAP | ~50 |
+| **Level 2** | Matrix-vector | GEMV, TRSV, SYMV, GER | ~65 |
+| **Level 3** | Matrix-matrix | GEMM, TRSM, SYMM, SYRK | ~25 |
+
+Filter by BLAS level in the UI when "BLAS" is selected as routine type.
 
 ## Architecture
 

@@ -86,6 +86,7 @@ async def query_codebase(request: QueryRequest):
             top_k=request.top_k,
             routine_type=request.routine_type,
             precision_type=request.precision_type,
+            blas_level=request.blas_level,
             expand=request.expand,
             rerank=request.rerank,
         )
@@ -139,6 +140,7 @@ async def query_codebase_sync(request: QueryRequest) -> QueryResponse:
             top_k=request.top_k,
             routine_type=request.routine_type,
             precision_type=request.precision_type,
+            blas_level=request.blas_level,
             expand=request.expand,
             rerank=request.rerank,
         )

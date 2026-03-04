@@ -167,6 +167,7 @@ def vector_search(
     top_k: int = 10,
     routine_type: str | None = None,
     precision_type: str | None = None,
+    blas_level: str | None = None,
 ) -> list[dict]:
     from app.db import get_connection
 
@@ -181,10 +182,13 @@ def vector_search(
         if precision_type:
             conditions.append("precision_type = %s")
             params.append(precision_type)
+        if blas_level:
+            conditions.append("blas_level = %s")
+            params.append(blas_level)
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
-                         routine_type, content, metadata, 1 - (embedding <=> %s::vector) AS score
+                         routine_type, blas_level, content, metadata, 1 - (embedding <=> %s::vector) AS score
                   FROM code_chunks {where}
                   ORDER BY embedding <=> %s::vector LIMIT %s"""
         cur.execute(sql, [embedding, *params, embedding, top_k])
@@ -194,8 +198,8 @@ def vector_search(
 
     return [
         {"id": r[0], "file_path": r[1], "line_start": r[2], "line_end": r[3],
-         "subroutine_name": r[4], "routine_type": r[5], "content": r[6],
-         "metadata": r[7], "score": float(r[8])}
+         "subroutine_name": r[4], "routine_type": r[5], "blas_level": r[6],
+         "content": r[7], "metadata": r[8], "score": float(r[9])}
         for r in rows
     ]
 
@@ -205,6 +209,7 @@ def keyword_search(
     top_k: int = 10,
     routine_type: str | None = None,
     precision_type: str | None = None,
+    blas_level: str | None = None,
 ) -> list[dict]:
     from app.db import get_connection
 
@@ -221,10 +226,13 @@ def keyword_search(
         if precision_type:
             conditions.append("precision_type = %s")
             params.append(precision_type)
+        if blas_level:
+            conditions.append("blas_level = %s")
+            params.append(blas_level)
 
         where = " AND ".join(conditions)
         sql = f"""SELECT id, file_path, line_start, line_end, subroutine_name,
-                         routine_type, content, metadata,
+                         routine_type, blas_level, content, metadata,
                          CASE WHEN UPPER(subroutine_name) = UPPER(%s) THEN 10.0
                               ELSE ts_rank(fts, plainto_tsquery('english', %s))
                          END AS score
@@ -237,8 +245,8 @@ def keyword_search(
 
     return [
         {"id": r[0], "file_path": r[1], "line_start": r[2], "line_end": r[3],
-         "subroutine_name": r[4], "routine_type": r[5], "content": r[6],
-         "metadata": r[7], "score": float(r[8])}
+         "subroutine_name": r[4], "routine_type": r[5], "blas_level": r[6],
+         "content": r[7], "metadata": r[8], "score": float(r[9])}
         for r in rows
     ]
 
@@ -271,7 +279,7 @@ def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
         for name in fuzzy_names_to_inject:
             cur.execute(
                 """SELECT id, file_path, line_start, line_end, subroutine_name,
-                          routine_type, content, metadata
+                          routine_type, blas_level, content, metadata
                    FROM code_chunks
                    WHERE UPPER(subroutine_name) = UPPER(%s)
                    LIMIT 1""",
@@ -282,15 +290,15 @@ def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
                 boosted.append({
                     "id": row[0], "file_path": row[1], "line_start": row[2],
                     "line_end": row[3], "subroutine_name": row[4],
-                    "routine_type": row[5], "content": row[6],
-                    "metadata": row[7], "rrf_score": 999.0,
+                    "routine_type": row[5], "blas_level": row[6],
+                    "content": row[7], "metadata": row[8], "rrf_score": 999.0,
                 })
                 existing_ids.add(row[0])
         for stem in matching_stems:
             d_name = f"D{stem}"
             cur.execute(
                 """SELECT id, file_path, line_start, line_end, subroutine_name,
-                          routine_type, content, metadata
+                          routine_type, blas_level, content, metadata
                    FROM code_chunks
                    WHERE UPPER(subroutine_name) = UPPER(%s)
                    LIMIT 1""",
@@ -301,8 +309,8 @@ def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
                 boosted.append({
                     "id": row[0], "file_path": row[1], "line_start": row[2],
                     "line_end": row[3], "subroutine_name": row[4],
-                    "routine_type": row[5], "content": row[6],
-                    "metadata": row[7], "rrf_score": 999.0,
+                    "routine_type": row[5], "blas_level": row[6],
+                    "content": row[7], "metadata": row[8], "rrf_score": 999.0,
                 })
                 existing_ids.add(row[0])
             elif row and row[0] in existing_ids:
@@ -329,7 +337,7 @@ def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
                 for name in names_to_fetch[:5]:
                     cur.execute(
                         """SELECT id, file_path, line_start, line_end, subroutine_name,
-                                  routine_type, content, metadata
+                                  routine_type, blas_level, content, metadata
                            FROM code_chunks
                            WHERE UPPER(subroutine_name) = UPPER(%s)
                            LIMIT 1""",
@@ -340,8 +348,8 @@ def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
                         boosted.append({
                             "id": row[0], "file_path": row[1], "line_start": row[2],
                             "line_end": row[3], "subroutine_name": row[4],
-                            "routine_type": row[5], "content": row[6],
-                            "metadata": row[7], "rrf_score": 500.0,
+                            "routine_type": row[5], "blas_level": row[6],
+                            "content": row[7], "metadata": row[8], "rrf_score": 500.0,
                         })
                         existing_ids.add(row[0])
                 cur.close()
@@ -450,6 +458,7 @@ def search(
     top_k: int = 5,
     routine_type: str | None = None,
     precision_type: str | None = None,
+    blas_level: str | None = None,
     expand: bool = False,
     rerank: bool = True,
 ) -> list[ChunkResult]:
@@ -468,6 +477,7 @@ def search(
                 top_k=pool_size,
                 routine_type=routine_type,
                 precision_type=precision_type,
+                blas_level=blas_level,
             )
         )
     t_vector = time.perf_counter()
@@ -477,6 +487,7 @@ def search(
         top_k=pool_size,
         routine_type=routine_type,
         precision_type=precision_type,
+        blas_level=blas_level,
     )
     t_keyword = time.perf_counter()
 
@@ -529,6 +540,7 @@ def search(
             ChunkResult(
                 file_path=r["file_path"], line_start=r["line_start"], line_end=r["line_end"],
                 subroutine_name=r.get("subroutine_name"), routine_type=r.get("routine_type"),
+                blas_level=r.get("blas_level"),
                 content=r["content"], relevance_score=round(r.get("rrf_score", 0), 4),
                 relevance_label=r.get("relevance_label", "Medium"),
                 calls=calls,

@@ -15,6 +15,7 @@ interface Chunk {
   line_end: number;
   subroutine_name: string | null;
   routine_type: string | null;
+  blas_level: string | null;
   content: string;
   relevance_score: number;
   relevance_label: string;
