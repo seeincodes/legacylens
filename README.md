@@ -124,9 +124,9 @@ Run the retrieval eval suite against the 25-query ground truth:
 
 ```bash
 cd backend
-python -m eval.run_eval              # default top-5
-python -m eval.run_eval --expand     # with query expansion
-python -m eval.run_eval --top-k 10   # evaluate at top-10
+python -m eval.run_eval                    # default top-5 (no expand/rerank)
+python -m eval.run_eval --expand --rerank # recommended: query expansion + LLM rerank
+python -m eval.run_eval --top-k 10         # evaluate at top-10
 ```
 
 Metrics: Precision@K, Recall@K, MRR, Hit Rate, per-category breakdown, and latency percentiles.
@@ -135,8 +135,9 @@ Metrics: Precision@K, Recall@K, MRR, Hit Rate, per-category breakdown, and laten
 
 | Metric              | Result                                            |
 | ------------------- | ------------------------------------------------- |
-| Retrieval latency   | ~2s median (p95 < 3s) — embedding + DB lookup     |
+| Retrieval latency   | ~2–5s median (p95 ~6s with expand+rerank) — embedding + DB + LLM rerank |
 | Answer generation   | 5–30s streaming — depends on LLM response length  |
+| Retrieval precision | ~65–69% Precision@5 (expand+rerank, target >70%)  |
 | Codebase coverage   | 2,294 files / 977K LOC indexed                    |
 | Answer citations    | Correct file paths and line ranges                |
 | Per-query cost      | ~$0.004–0.005                                     |

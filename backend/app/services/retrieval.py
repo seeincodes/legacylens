@@ -369,7 +369,7 @@ def llm_rerank(query: str, candidates: list[dict], top_k: int = 5) -> list[dict]
     if client is None:
         return candidates[:top_k]
 
-    limit = min(len(candidates), 15)
+    limit = min(len(candidates), 25)
     descriptions = []
     for i, r in enumerate(candidates[:limit]):
         name = r.get("subroutine_name", "unknown")
@@ -466,7 +466,7 @@ def search(
     queries = expand_query(query) if expand else [query]
     t_expand = time.perf_counter()
 
-    pool_size = 15 if rerank else 10
+    pool_size = 25 if rerank else 10
 
     vector_results = []
     for query_variant in queries:
