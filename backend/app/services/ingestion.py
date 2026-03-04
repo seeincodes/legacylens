@@ -186,17 +186,27 @@ def build_chunk_text(chunk: dict) -> str:
 
 
 def generate_embeddings(texts: list[str], batch_size: int = 100) -> list[list[float]]:
+    import time
     import openai
     from app.config import settings
     client = openai.OpenAI(api_key=settings.openai_api_key)
-    # Truncate texts that exceed the model's 8191 token limit (~25k chars for code)
-    max_chars = 15000
+    # Truncate texts that exceed the model's 8191 token limit (~4 chars/token for code)
+    max_chars = 10000
     texts = [t[:max_chars] if len(t) > max_chars else t for t in texts]
     all_embeddings = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
-        response = client.embeddings.create(model="text-embedding-3-small", input=batch)
-        all_embeddings.extend([item.embedding for item in response.data])
+        for attempt in range(5):
+            try:
+                response = client.embeddings.create(model="text-embedding-3-small", input=batch)
+                all_embeddings.extend([item.embedding for item in response.data])
+                break
+            except openai.RateLimitError as e:
+                wait = 2 ** attempt + 1
+                print(f"  Rate limited, waiting {wait}s... ({e})")
+                time.sleep(wait)
+        else:
+            raise RuntimeError(f"Failed to embed batch {i} after 5 retries")
         print(f"  Embedded {min(i + batch_size, len(texts))}/{len(texts)}")
     return all_embeddings
 

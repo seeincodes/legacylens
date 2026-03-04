@@ -276,6 +276,24 @@ def search(
     t_keyword = time.perf_counter()
 
     merged = reciprocal_rank_fusion(vector_results, kw_results)
+
+    # When no precision filter is set, boost double-precision (D-prefix) results
+    # and penalize level-2 helper routines (names ending in digits like POTRF2).
+    # LAPACK uses D-prefix as the canonical reference implementation, and users
+    # searching by concept (e.g. "Cholesky") typically want the primary routine
+    # rather than single/complex variants or internal helpers.
+    if not precision_type:
+        for r in merged:
+            name = (r.get("subroutine_name") or "")
+            if not name:
+                continue
+            # Boost double-precision routines
+            if name[0].upper() == "D":
+                r["rrf_score"] = r["rrf_score"] * 2.0
+            # Penalize internal helpers (names ending in digits, e.g. DPOTRF2)
+            if name[-1].isdigit():
+                r["rrf_score"] = r["rrf_score"] * 0.5
+
     merged = normalize_scores(merged)
 
     logger.info(
