@@ -139,15 +139,16 @@ export default function Home() {
         </div>
         <Link
           href="/stats"
-          className="flex-1 text-right px-4 py-2 rounded-lg font-bold text-base"
+          className="flex-1 text-right inline-flex items-center justify-end gap-2 px-4 py-2 rounded-2xl font-bold text-sm"
           style={{
             fontFamily: "var(--font-architects-daughter)",
-            color: "white",
-            background: "var(--chalk-blue)",
-            border: "2px solid var(--chalk-blue)",
-            boxShadow: "2px 2px 0 rgba(74,111,165,0.3)",
+            color: "var(--chalk-blue)",
+            background: "var(--chalk-blue-light)",
+            border: "2px dashed var(--chalk-blue)",
+            boxShadow: "1px 1px 0 rgba(74,111,165,0.2)",
           }}
         >
+          <span style={{ fontSize: "1.1em" }}>📊</span>
           Stats
         </Link>
       </div>
@@ -174,12 +175,14 @@ export default function Home() {
           />
         </div>
         <AnswerPanel answer={answer} isStreaming={isStreaming} hasUnverified={hasUnverified} />
-        <ResultsList
-          chunks={chunks}
-          isLoading={isLoading}
-          error={queryError}
-          hasSearched={hasSearched}
-        />
+        {!isStreaming && (
+          <ResultsList
+            chunks={chunks}
+            isLoading={isLoading}
+            error={queryError}
+            hasSearched={hasSearched}
+          />
+        )}
       </div>
 
       {/* Footer */}

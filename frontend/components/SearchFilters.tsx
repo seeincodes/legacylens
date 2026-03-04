@@ -33,7 +33,7 @@ export default function SearchFilters({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">
           <span
-            className="text-xs"
+            className="text-xs inline-flex items-center gap-1.5"
             style={{
               fontFamily: "var(--font-jetbrains-mono)",
               color: "var(--ink-faint)",
@@ -42,6 +42,30 @@ export default function SearchFilters({
             }}
           >
             Routine Type
+            <span className="relative group">
+              <span
+                className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold cursor-help"
+                style={{
+                  color: "var(--chalk-blue)",
+                  background: "var(--chalk-blue-light)",
+                  border: "1px solid var(--chalk-blue)",
+                }}
+              >
+                ?
+              </span>
+              <span
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs whitespace-normal w-56 text-left opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-10 pointer-events-none"
+                style={{
+                  fontFamily: "var(--font-crimson-pro)",
+                  color: "var(--ink)",
+                  background: "white",
+                  border: "1px solid var(--paper-grid)",
+                  boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
+                }}
+              >
+                BLAS: low-level ops (DAXPY, DGEMM). Driver: high-level solvers (DGESV, DSYEV). Computational: core algorithms (DGETRF, DPOTRF).
+              </span>
+            </span>
           </span>
           <select
             value={routineType}
@@ -65,7 +89,7 @@ export default function SearchFilters({
 
         <label className="flex flex-col gap-1">
           <span
-            className="text-xs"
+            className="text-xs inline-flex items-center gap-1.5"
             style={{
               fontFamily: "var(--font-jetbrains-mono)",
               color: "var(--ink-faint)",
@@ -74,6 +98,30 @@ export default function SearchFilters({
             }}
           >
             Precision
+            <span className="relative group">
+              <span
+                className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold cursor-help"
+                style={{
+                  color: "var(--chalk-blue)",
+                  background: "var(--chalk-blue-light)",
+                  border: "1px solid var(--chalk-blue)",
+                }}
+              >
+                ?
+              </span>
+              <span
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-xs whitespace-normal w-56 text-left opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-10 pointer-events-none"
+                style={{
+                  fontFamily: "var(--font-crimson-pro)",
+                  color: "var(--ink)",
+                  background: "white",
+                  border: "1px solid var(--paper-grid)",
+                  boxShadow: "2px 2px 0 rgba(0,0,0,0.05)",
+                }}
+              >
+                Single (S), Double (D), Complex (C), Double Complex (Z). LAPACK uses prefixes: e.g. DGESV = double-precision general solver.
+              </span>
+            </span>
           </span>
           <select
             value={precisionType}

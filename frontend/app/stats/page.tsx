@@ -80,15 +80,29 @@ export default function StatsPage() {
           >
             ← Search
           </Link>
-          <h1
-            className="text-3xl"
-            style={{
-              fontFamily: "var(--font-architects-daughter)",
-              color: "var(--ink)",
-            }}
-          >
-            Codebase Stats
-          </h1>
+          <div className="text-center">
+            <h1
+              className="text-3xl"
+              style={{
+                fontFamily: "var(--font-architects-daughter)",
+                color: "var(--ink)",
+              }}
+            >
+              Codebase Stats
+            </h1>
+            <a
+              href="https://github.com/Reference-LAPACK/lapack"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs mt-1 inline-block"
+              style={{
+                fontFamily: "var(--font-jetbrains-mono)",
+                color: "var(--chalk-blue)",
+              }}
+            >
+              View source on GitHub →
+            </a>
+          </div>
           <span className="w-14" />
         </div>
 
