@@ -27,6 +27,11 @@ Rules:
 - If the provided snippets don't contain enough information to answer, say so explicitly
 - Be concise but thorough"""
 
+BRIEF_SYSTEM_PROMPT = """You are a legacy code expert analyzing Fortran source from LAPACK.
+
+Answer the user's question in 1-3 sentences. Be concise. Use ONLY the provided code snippets.
+ALWAYS cite your source: include [file_path:line_start-line_end] for each snippet you use (e.g. [SRC/dgesv.f:1-158])."""
+
 _REF_PATTERN = re.compile(r"\[([^\]]+?):(\d+)(?:-(\d+))?\]")
 
 
@@ -54,26 +59,30 @@ def build_context(chunks: list[ChunkResult]) -> str:
     return "\n".join(parts)
 
 
-def generate_answer(query: str, chunks: list[ChunkResult]) -> str:
+def generate_answer(query: str, chunks: list[ChunkResult], brief: bool = False) -> str:
     client = _get_client()
     context = build_context(chunks)
+    system = BRIEF_SYSTEM_PROMPT if brief else SYSTEM_PROMPT
+    max_tokens = 256 if brief else 1024
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        system=SYSTEM_PROMPT,
+        max_tokens=max_tokens,
+        system=system,
         messages=[{"role": "user", "content": f"Retrieved code context:\n\n{context}\n\nQuestion: {query}"}],
     )
     answer = message.content[0].text
     return validate_references(answer, chunks)
 
 
-async def stream_answer(query: str, chunks: list[ChunkResult]):
+async def stream_answer(query: str, chunks: list[ChunkResult], brief: bool = False):
     client = _get_client()
     context = build_context(chunks)
+    system = BRIEF_SYSTEM_PROMPT if brief else SYSTEM_PROMPT
+    max_tokens = 256 if brief else 1024
     with client.messages.stream(
         model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        system=SYSTEM_PROMPT,
+        max_tokens=max_tokens,
+        system=system,
         messages=[{"role": "user", "content": f"Retrieved code context:\n\n{context}\n\nQuestion: {query}"}],
     ) as stream:
         for text in stream.text_stream:

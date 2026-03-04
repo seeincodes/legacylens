@@ -27,6 +27,7 @@ export default function Home() {
   const [queryError, setQueryError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [expandSearch, setExpandSearch] = useState(false);
+  const [briefMode, setBriefMode] = useState(false);
   const [routineType, setRoutineType] = useState("");
   const [precisionType, setPrecisionType] = useState("");
 
@@ -46,6 +47,7 @@ export default function Home() {
           query,
           top_k: 5,
           expand: expandSearch,
+          brief: briefMode,
           routine_type: routineType || null,
           precision_type: precisionType || null,
         }),
@@ -136,6 +138,8 @@ export default function Home() {
           isLoading={isLoading}
           expand={expandSearch}
           onExpandChange={setExpandSearch}
+          brief={briefMode}
+          onBriefChange={setBriefMode}
         />
         <SearchFilters
           routineType={routineType}

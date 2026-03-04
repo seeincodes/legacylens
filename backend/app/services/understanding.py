@@ -47,7 +47,8 @@ def _truncate_for_llm(content: str, max_chars: int = 6000) -> str:
 
 
 def lookup_routine(name: str, include_embedding: bool = True) -> dict | None:
-    """Find a routine by name (case-insensitive). Returns dict with all fields or None."""
+    """Find a routine by name (case-insensitive). Falls back to fuzzy match on typo.
+    Returns dict with all fields or None. Includes corrected_from when fuzzy match was used."""
     conn = _get_conn()
     cur = conn.cursor()
     if include_embedding:
@@ -73,6 +74,13 @@ def lookup_routine(name: str, include_embedding: bool = True) -> dict | None:
     conn.close()
 
     if not row:
+        from app.services.routine_index import fuzzy_match_routine
+
+        corrected = fuzzy_match_routine(name)
+        if corrected:
+            return lookup_routine(corrected, include_embedding=include_embedding) | {
+                "corrected_from": name.strip()
+            }
         return None
 
     meta = row[7] if isinstance(row[7], dict) else (json.loads(row[7]) if row[7] else {})
@@ -117,7 +125,7 @@ def _generate_explanation(name: str, system_prompt: str, max_tokens: int = 768) 
         }],
     )
 
-    return {
+    result = {
         "subroutine_name": routine["subroutine_name"],
         "routine_type": routine["routine_type"],
         "file_path": routine["file_path"],
@@ -126,6 +134,9 @@ def _generate_explanation(name: str, system_prompt: str, max_tokens: int = 768) 
         "explanation": message.content[0].text,
         "calls": routine["calls"],
     }
+    if routine.get("corrected_from"):
+        result["corrected_from"] = routine["corrected_from"]
+    return result
 
 
 def explain_routine(name: str) -> dict | None:
@@ -228,6 +239,8 @@ def build_dependency_graph(name: str, max_depth: int = 3) -> dict | None:
         "nodes": nodes,
         "max_depth": max_depth,
     }
+    if root.get("corrected_from"):
+        result["corrected_from"] = root["corrected_from"]
     _put_cached(name, f"dependencies:{max_depth}", result)
     return result
 
@@ -273,6 +286,8 @@ def find_similar_routines(name: str, top_k: int = 5) -> dict | None:
         })
 
     result = {"subroutine_name": routine["subroutine_name"], "similar": similar}
+    if routine.get("corrected_from"):
+        result["corrected_from"] = routine["corrected_from"]
     _put_cached(name, f"similar:{top_k}", result)
     return result
 
@@ -318,6 +333,8 @@ def generate_documentation(name: str) -> dict | None:
         "subroutine_name": routine["subroutine_name"],
         "documentation": message.content[0].text,
     }
+    if routine.get("corrected_from"):
+        result["corrected_from"] = routine["corrected_from"]
     _put_cached(name, "document", result)
     return result
 
@@ -364,6 +381,8 @@ def translate_routine(name: str) -> dict | None:
         "code": code,
         "explanation": explanation or "See code below.",
     }
+    if routine.get("corrected_from"):
+        result["corrected_from"] = routine["corrected_from"]
     _put_cached(name, "translate", result)
     return result
 
@@ -405,5 +424,7 @@ def get_use_cases(name: str) -> dict | None:
         "use_cases": message.content[0].text,
         "typical_callers": [],
     }
+    if routine.get("corrected_from"):
+        result["corrected_from"] = routine["corrected_from"]
     _put_cached(name, "use-cases", result)
     return result

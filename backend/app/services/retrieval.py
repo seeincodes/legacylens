@@ -244,11 +244,21 @@ def keyword_search(
 
 
 def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
-    """Inject matching D-prefix routines from the concept map into results."""
+    """Inject matching D-prefix routines from the concept map into results.
+    Falls back to fuzzy routine name match when query looks like a single routine name."""
     from app.services.concept_map import find_stems_for_query
+    from app.services.routine_index import fuzzy_match_routine, _looks_like_routine_name
 
     matching_stems = find_stems_for_query(query)
-    if not matching_stems:
+    fuzzy_names_to_inject: list[str] = []
+    if not matching_stems and _looks_like_routine_name(query):
+        corrected = fuzzy_match_routine(query)
+        if corrected:
+            if corrected[0].upper() in "SDCZ" and len(corrected) > 1:
+                matching_stems = [corrected[1:]]  # stem without precision prefix
+            else:
+                fuzzy_names_to_inject = [corrected]
+    if not matching_stems and not fuzzy_names_to_inject:
         return existing_results
 
     from app.db import get_connection
@@ -258,6 +268,24 @@ def concept_boost(query: str, existing_results: list[dict]) -> list[dict]:
 
     with get_connection() as conn:
         cur = conn.cursor()
+        for name in fuzzy_names_to_inject:
+            cur.execute(
+                """SELECT id, file_path, line_start, line_end, subroutine_name,
+                          routine_type, content, metadata
+                   FROM code_chunks
+                   WHERE UPPER(subroutine_name) = UPPER(%s)
+                   LIMIT 1""",
+                (name,),
+            )
+            row = cur.fetchone()
+            if row and row[0] not in existing_ids:
+                boosted.append({
+                    "id": row[0], "file_path": row[1], "line_start": row[2],
+                    "line_end": row[3], "subroutine_name": row[4],
+                    "routine_type": row[5], "content": row[6],
+                    "metadata": row[7], "rrf_score": 999.0,
+                })
+                existing_ids.add(row[0])
         for stem in matching_stems:
             d_name = f"D{stem}"
             cur.execute(

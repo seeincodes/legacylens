@@ -13,6 +13,7 @@ interface ExplainData {
   line_end: number;
   explanation: string;
   calls: string[];
+  corrected_from?: string;
 }
 
 interface DependencyNode {
@@ -27,6 +28,7 @@ interface DependencyData {
   root: string;
   nodes: DependencyNode[];
   max_depth: number;
+  corrected_from?: string;
 }
 
 interface SimilarRoutine {
@@ -40,23 +42,27 @@ interface SimilarRoutine {
 interface SimilarData {
   subroutine_name: string;
   similar: SimilarRoutine[];
+  corrected_from?: string;
 }
 
 interface DocumentData {
   subroutine_name: string;
   documentation: string;
+  corrected_from?: string;
 }
 
 interface TranslateData {
   subroutine_name: string;
   code: string;
   explanation: string;
+  corrected_from?: string;
 }
 
 interface UseCasesData {
   subroutine_name: string;
   use_cases: string;
   typical_callers: string[];
+  corrected_from?: string;
 }
 
 export type UnderstandFeature = "explain" | "eli5" | "dependencies" | "similar" | "document" | "translate" | "use-cases";
@@ -481,6 +487,19 @@ export default function UnderstandPanel({ result, isLoading, feature }: Understa
         </div>
       ) : result ? (
         <>
+          {"corrected_from" in result.data && result.data.corrected_from && (
+            <div
+              className="mb-3 px-3 py-2 rounded-lg text-sm"
+              style={{
+                fontFamily: "var(--font-crimson-pro)",
+                color: "var(--chalk-blue)",
+                background: "var(--chalk-blue-light)",
+                border: "1px solid var(--chalk-blue)",
+              }}
+            >
+              Showing results for <strong>{"subroutine_name" in result.data ? result.data.subroutine_name : result.data.root}</strong> (you searched for &quot;{result.data.corrected_from}&quot;)
+            </div>
+          )}
           {result.feature === "explain" && <ExplainView data={result.data} />}
           {result.feature === "eli5" && <ELI5View data={result.data} />}
           {result.feature === "dependencies" && <DependencyView data={result.data} />}

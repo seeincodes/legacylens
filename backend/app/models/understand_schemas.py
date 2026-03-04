@@ -43,6 +43,7 @@ class ExplainResponse(BaseModel):
     line_end: int
     explanation: str
     calls: list[str]
+    corrected_from: str | None = None
 
 
 class ELI5Response(BaseModel):
@@ -53,6 +54,7 @@ class ELI5Response(BaseModel):
     line_end: int
     explanation: str
     calls: list[str]
+    corrected_from: str | None = None
 
 
 class DependencyNode(BaseModel):
@@ -67,6 +69,7 @@ class DependencyResponse(BaseModel):
     root: str
     nodes: list[DependencyNode]
     max_depth: int
+    corrected_from: str | None = None
 
 
 class SimilarRoutine(BaseModel):
@@ -80,20 +83,24 @@ class SimilarRoutine(BaseModel):
 class SimilarResponse(BaseModel):
     subroutine_name: str
     similar: list[SimilarRoutine]
+    corrected_from: str | None = None
 
 
 class DocumentResponse(BaseModel):
     subroutine_name: str
     documentation: str
+    corrected_from: str | None = None
 
 
 class TranslateResponse(BaseModel):
     subroutine_name: str
     code: str
     explanation: str
+    corrected_from: str | None = None
 
 
 class UseCasesResponse(BaseModel):
     subroutine_name: str
     use_cases: str
     typical_callers: list[str] = []
+    corrected_from: str | None = None

@@ -104,7 +104,7 @@ async def query_codebase(request: QueryRequest):
         t_gen = time.perf_counter()
         full_answer = ""
         try:
-            async for token in stream_answer(query, chunks):
+            async for token in stream_answer(query, chunks, brief=request.brief):
                 full_answer += token
                 yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
         except Exception as exc:
@@ -146,7 +146,7 @@ async def query_codebase_sync(request: QueryRequest) -> QueryResponse:
         raise HTTPException(status_code=502, detail="Search service temporarily unavailable")
 
     try:
-        answer = generate_answer(query, chunks)
+        answer = generate_answer(query, chunks, brief=request.brief)
     except Exception as exc:
         logger.error("generation failed for query=%r: %s", query[:80], exc)
         answer = "Answer generation is temporarily unavailable. Results are shown above."

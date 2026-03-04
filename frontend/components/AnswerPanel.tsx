@@ -7,8 +7,44 @@ interface AnswerPanelProps {
   isStreaming: boolean;
 }
 
+const CITATION_RE = /\[([^\]:]+):(\d+)(?:[-–](\d+))?\]/g;
+
+function extractCitations(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  CITATION_RE.lastIndex = 0;
+  while ((m = CITATION_RE.exec(text)) !== null) {
+    const full = m[3] ? `${m[1]}:${m[2]}-${m[3]}` : `${m[1]}:${m[2]}`;
+    if (!seen.has(full)) {
+      seen.add(full);
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+function SourceChip({ source }: { source: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold"
+      style={{
+        fontFamily: "var(--font-jetbrains-mono)",
+        color: "white",
+        background: "var(--chalk-blue)",
+        border: "2px solid var(--chalk-blue)",
+        fontSize: "0.9rem",
+        boxShadow: "2px 2px 0 rgba(74,111,165,0.3)",
+      }}
+    >
+      <span style={{ opacity: 0.9 }}>📄</span>
+      {source}
+    </span>
+  );
+}
+
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
-  const inlinePattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[A-Z][A-Za-z0-9_/.-]+:\d+[-–]\d+\])/g;
+  const inlinePattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]:]+:\d+(?:[-–]\d+)?\])/g;
   const parts = text.split(inlinePattern).filter(Boolean);
 
   return parts.map((part, idx) => {
@@ -22,22 +58,8 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     if (part.startsWith("*") && part.endsWith("*")) {
       return <em key={key}>{part.slice(1, -1)}</em>;
     }
-    if (/^\[[A-Z][A-Za-z0-9_/.-]+:\d+[-–]\d+\]$/.test(part)) {
-      return (
-        <span
-          key={key}
-          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mx-0.5 align-baseline"
-          style={{
-            fontFamily: "var(--font-jetbrains-mono)",
-            color: "var(--chalk-purple)",
-            background: "var(--chalk-purple-light)",
-            border: "1px solid var(--chalk-purple)",
-            fontSize: "0.75em",
-          }}
-        >
-          {part.slice(1, -1)}
-        </span>
-      );
+    if (/^\[[^\]:]+:\d+(?:[-–]\d+)?\]$/.test(part)) {
+      return <SourceChip key={key} source={part.slice(1, -1)} />;
     }
     return <span key={key}>{part}</span>;
   });
@@ -182,6 +204,8 @@ function renderMarkdown(markdown: string): ReactNode[] {
 export default function AnswerPanel({ answer, isStreaming }: AnswerPanelProps) {
   if (!answer) return null;
 
+  const sources = extractCitations(answer);
+
   return (
     <div className="w-full math-card fade-in-up overflow-hidden">
       {/* Header */}
@@ -235,6 +259,29 @@ export default function AnswerPanel({ answer, isStreaming }: AnswerPanelProps) {
             />
           )}
         </div>
+
+        {/* Sources section — prominent chips for all citations */}
+        {sources.length > 0 && (
+          <div
+            className="mt-4 pt-4 flex flex-wrap gap-2"
+            style={{ borderTop: "2px dashed var(--paper-grid)" }}
+          >
+            <span
+              className="text-xs font-bold"
+              style={{
+                fontFamily: "var(--font-architects-daughter)",
+                color: "var(--ink-light)",
+                width: "100%",
+                marginBottom: "2px",
+              }}
+            >
+              Sources
+            </span>
+            {sources.map((s, i) => (
+              <SourceChip key={`${s}-${i}`} source={s} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

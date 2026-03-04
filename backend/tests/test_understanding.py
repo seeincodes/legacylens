@@ -30,8 +30,9 @@ def test_lookup_routine_found(mock_conn):
     assert result["routine_type"] == "driver"
 
 
+@patch("app.services.routine_index.fuzzy_match_routine", return_value=None)
 @patch("app.services.understanding._get_conn")
-def test_lookup_routine_not_found(mock_conn):
+def test_lookup_routine_not_found(mock_conn, mock_fuzzy):
     cur = MagicMock()
     cur.fetchone.return_value = None
     mock_conn.return_value.cursor.return_value = cur

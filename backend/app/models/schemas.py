@@ -8,6 +8,7 @@ class QueryRequest(BaseModel):
     precision_type: str | None = None
     expand: bool = False
     rerank: bool = True
+    brief: bool = False
 
 
 class ChunkResult(BaseModel):
