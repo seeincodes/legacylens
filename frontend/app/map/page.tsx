@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
@@ -40,7 +40,10 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [routineType, setRoutineType] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set());
+  const fgRef = useRef<import("react-force-graph-2d").ForceGraphMethods | undefined>(undefined);
+  const pendingZoomMatches = useRef<Set<string> | null>(null);
   const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const { width, height } = useWindowSize();
@@ -87,12 +90,27 @@ export default function MapPage() {
     setTooltipPos({ x: e.clientX, y: e.clientY });
   }, []);
 
+  const handleSearch = useCallback(() => {
+    const q = searchQuery.trim().toUpperCase();
+    if (!q || !graphData) return;
+    const matches = new Set(graphData.nodes.filter((n) => n.id.includes(q)).map((n) => n.id));
+    setHighlightNodes(matches);
+    if (matches.size > 0) {
+      pendingZoomMatches.current = matches;
+    }
+  }, [searchQuery, graphData]);
+
+  const handleEngineStop = useCallback(() => {
+    if (pendingZoomMatches.current && fgRef.current) {
+      const matches = pendingZoomMatches.current;
+      pendingZoomMatches.current = null;
+      fgRef.current.zoomToFit(400, 200, (node) => matches.has(String((node as GraphNode).id)));
+    }
+  }, []);
+
   const gData = useMemo(() => {
     if (!graphData) return { nodes: [] as GraphNode[], links: [] as { source: GraphNode | string; target: GraphNode | string }[] };
-    const nodes = graphData.nodes.map((n) => ({
-      ...n,
-      val: highlightNodes.has(n.id) ? 12 : 4,
-    }));
+    const nodes = graphData.nodes.map((n) => ({ ...n }));
     const nodeMap = new Map(nodes.map((n) => [n.id, n]));
     const links = graphData.links
       .map((l) => ({
@@ -101,7 +119,7 @@ export default function MapPage() {
       }))
       .filter((l) => l.source && l.target);
     return { nodes, links };
-  }, [graphData, highlightNodes]);
+  }, [graphData]);
 
   if (loading && !graphData) {
     return (
@@ -162,12 +180,41 @@ export default function MapPage() {
         >
           Library Map
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearch())}
+              placeholder="Search routine (e.g. DGESV)"
+              className="px-2 py-1 rounded text-xs border w-36 sm:w-44"
+              style={{
+                fontFamily: "var(--font-jetbrains-mono)",
+                borderColor: "var(--paper-grid)",
+                background: "var(--paper)",
+                color: "var(--ink)",
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="px-2 py-1 rounded text-xs font-medium shrink-0"
+              style={{
+                fontFamily: "var(--font-architects-daughter)",
+                background: "var(--chalk-blue)",
+                color: "var(--paper)",
+                border: "none",
+              }}
+            >
+              Go
+            </button>
+          </div>
           <span
             className="text-xs hidden sm:inline"
             style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)" }}
           >
-            Hover nodes for details · Click to highlight
+            Hover for details · Click to highlight
           </span>
           <div className="flex items-center gap-2">
             <label
@@ -227,8 +274,12 @@ export default function MapPage() {
       >
         {gData.nodes.length > 0 ? (
           <ForceGraph2D
+            ref={fgRef}
             graphData={gData}
             nodeId="id"
+            nodeVal={(n) =>
+              highlightNodes.has(String((n as GraphNode).id ?? "")) ? 12 : 4
+            }
             nodeColor={(n) =>
               highlightNodes.has(String((n as GraphNode).id ?? ""))
                 ? "#c8860a"
@@ -242,6 +293,7 @@ export default function MapPage() {
             linkWidth={0.5}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
+            onEngineStop={handleEngineStop}
             backgroundColor="#faf6ee"
             width={width}
             height={height}
