@@ -1,6 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+const QUESTION_TEMPLATES = [
+  (name: string) => `What does ${name} do?`,
+  (name: string) => `Explain how ${name} works`,
+  (name: string) => `What routines call ${name}?`,
+  (name: string) => `What are the parameters of ${name}?`,
+  (name: string) => `How is ${name} used in practice?`,
+];
 
 interface QueryInputProps {
   onSubmit: (query: string) => void;
@@ -14,6 +24,35 @@ interface QueryInputProps {
 
 export default function QueryInput({ onSubmit, expand, onExpandChange, brief, onBriefChange, isLoading, initialQuery }: QueryInputProps) {
   const [query, setQuery] = useState(initialQuery || "");
+  const [randomSuggestions, setRandomSuggestions] = useState<string[]>([]);
+  const [shuffling, setShuffling] = useState(false);
+  const cachedRoutines = useRef<string[]>([]);
+
+  const fetchRandomSuggestions = useCallback(async () => {
+    setShuffling(true);
+    try {
+      if (cachedRoutines.current.length === 0) {
+        const res = await fetch(`${API_URL}/api/graph`);
+        if (!res.ok) throw new Error("Failed to fetch graph");
+        const data = await res.json();
+        cachedRoutines.current = data.nodes.map((n: { id: string }) => n.id);
+      }
+      const routines = cachedRoutines.current;
+      const picked = new Set<string>();
+      while (picked.size < 3 && picked.size < routines.length) {
+        picked.add(routines[Math.floor(Math.random() * routines.length)]);
+      }
+      const suggestions = Array.from(picked).map((name) => {
+        const template = QUESTION_TEMPLATES[Math.floor(Math.random() * QUESTION_TEMPLATES.length)];
+        return template(name);
+      });
+      setRandomSuggestions(suggestions);
+    } catch {
+      setRandomSuggestions([]);
+    } finally {
+      setShuffling(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (initialQuery) setQuery(initialQuery);
@@ -30,20 +69,40 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, brief, on
     <form onSubmit={handleSubmit} className="w-full">
       <div className="math-card p-5">
         <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ask about LAPACK... e.g. &quot;What does DGESV do?&quot;"
-            className="flex-1 px-4 py-2.5 text-base sm:text-lg rounded-lg border-2 transition-all"
-            style={{
-              fontFamily: "var(--font-architects-daughter)",
-              color: isLoading ? "var(--ink-faint)" : "var(--ink)",
-              background: isLoading ? "var(--paper-dark)" : "white",
-              borderColor: "var(--paper-grid)",
-            }}
-            disabled={isLoading}
-          />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Ask about LAPACK... e.g. &quot;What does DGESV do?&quot;"
+              className="w-full px-4 py-2.5 text-base sm:text-lg rounded-lg border-2 transition-all"
+              style={{
+                fontFamily: "var(--font-architects-daughter)",
+                color: isLoading ? "var(--ink-faint)" : "var(--ink)",
+                background: isLoading ? "var(--paper-dark)" : "white",
+                borderColor: isLoading ? "var(--chalk-amber)" : "var(--paper-grid)",
+                paddingRight: isLoading ? "2.5rem" : "1rem",
+              }}
+              disabled={isLoading}
+            />
+            {isLoading && (
+              <div
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+              >
+                <svg
+                  className="animate-spin"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  style={{ color: "var(--chalk-amber)" }}
+                >
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </div>
+            )}
+          </div>
 
           <button
             type="submit"
@@ -72,7 +131,7 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, brief, on
         </div>
 
         {/* Suggestions — populate search bar only, don't auto-submit */}
-        <div className="flex gap-2 mt-3 flex-wrap">
+        <div className="flex gap-2 mt-3 flex-wrap items-center">
           <span
             className="text-xs w-full"
             style={{
@@ -82,11 +141,14 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, brief, on
           >
             Suggestions:
           </span>
-          {[
-            "What does DGESV do?",
-            "How does LU factorization work?",
-            "Explain eigenvalue decomposition",
-          ].map((example) => (
+          {(randomSuggestions.length > 0
+            ? randomSuggestions
+            : [
+                "How does LAPACK solve a system of linear equations?",
+                "What routines compute singular value decomposition?",
+                "What's the difference between single and double precision routines?",
+              ]
+          ).map((example) => (
             <button
               key={example}
               type="button"
@@ -108,6 +170,28 @@ export default function QueryInput({ onSubmit, expand, onExpandChange, brief, on
               {example}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={fetchRandomSuggestions}
+            disabled={shuffling}
+            className="text-xs px-3 py-1 rounded-full transition-colors duration-150"
+            style={{
+              fontFamily: "var(--font-jetbrains-mono)",
+              color: "var(--chalk-blue)",
+              background: "var(--chalk-blue-light)",
+              border: "1px solid transparent",
+              cursor: shuffling ? "wait" : "pointer",
+              opacity: shuffling ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--chalk-blue)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "transparent";
+            }}
+          >
+            {shuffling ? "Loading..." : "Surprise me"}
+          </button>
         </div>
 
         <div className="mt-4 pt-3 flex items-center justify-end gap-6 flex-wrap" style={{ borderTop: "1px dashed var(--paper-grid)" }}>

@@ -98,7 +98,6 @@ export default function SearchTab({ linkedRoutine, linkedAction, initialQuery }:
 
           if (data.type === "chunks") {
             setChunks(data.chunks);
-            setIsLoading(false);
           } else if (data.type === "token") {
             setAnswer((prev) => prev + data.token);
           } else if (data.type === "done") {

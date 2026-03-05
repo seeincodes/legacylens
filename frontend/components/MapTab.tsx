@@ -52,18 +52,30 @@ export default function MapTab() {
     const update = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        setDims({ width: rect.width, height: rect.height });
+        if (rect.width > 0 && rect.height > 0) {
+          setDims({ width: Math.ceil(rect.width), height: Math.ceil(rect.height) });
+        }
       }
     };
     update();
-    const obs = new ResizeObserver(() => update());
-    if (containerRef.current) obs.observe(containerRef.current);
+    const resObs = new ResizeObserver(() => update());
+    if (containerRef.current) resObs.observe(containerRef.current);
+    // Re-measure when the container becomes visible (e.g. tab switch)
+    const intObs = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) {
+        update();
+        // Also re-fit graph to new dimensions after tab switch
+        setTimeout(() => fgRef.current?.zoomToFit(400, 60), 100);
+      }
+    });
+    if (containerRef.current) intObs.observe(containerRef.current);
     window.addEventListener("resize", update);
     return () => {
-      obs.disconnect();
+      resObs.disconnect();
+      intObs.disconnect();
       window.removeEventListener("resize", update);
     };
-  }, [selectedNode]);
+  }, []);
 
   const fetchGraph = useCallback(async (type?: string) => {
     setLoading(true);
@@ -87,6 +99,16 @@ export default function MapTab() {
   useEffect(() => {
     fetchGraph(routineType || undefined);
   }, [routineType, fetchGraph]);
+
+  // Zoom to fit all nodes after graph data loads and simulation settles
+  useEffect(() => {
+    if (graphData && fgRef.current) {
+      const timer = setTimeout(() => {
+        fgRef.current?.zoomToFit(400, 60);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [graphData]);
 
   const handleNodeClick = useCallback((node: { id?: string | number } | null) => {
     if (!node || node.id == null) return;
@@ -208,26 +230,6 @@ export default function MapTab() {
     }
   }, [degreeMap, highlightNodes, selectedNode, neighborSet]);
 
-  if (loading && !graphData) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-sm" style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)" }}>
-          Loading call graph...
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !graphData) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-sm" style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--chalk-pink)" }}>
-          {error}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-1 min-h-0">
       {/* Graph + floating toolbar */}
@@ -237,7 +239,24 @@ export default function MapTab() {
         style={{ background: "var(--paper)" }}
         onMouseMove={handleMouseMove}
       >
+      {/* Loading / error overlays */}
+      {loading && !graphData && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center">
+          <div className="text-sm" style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)" }}>
+            Loading call graph...
+          </div>
+        </div>
+      )}
+      {error && !graphData && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center">
+          <p className="text-sm" style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--chalk-pink)" }}>
+            {error}
+          </p>
+        </div>
+      )}
+
       {/* Floating toolbar */}
+      {graphData && (
       <div
         className="absolute top-3 right-3 z-10 flex items-center gap-3 px-3 py-2 rounded-xl"
         style={{ background: "rgba(250,246,238,0.92)", border: "1px solid var(--paper-grid)" }}
@@ -330,6 +349,7 @@ export default function MapTab() {
           Click a node to explore
         </span>
       </div>
+      )}
 
       {/* Tooltip */}
       {hoverNode && (
@@ -388,14 +408,16 @@ export default function MapTab() {
             width={dims.width}
             height={dims.height}
           />
-        ) : (
+        ) : graphData ? (
           <div
             className="flex items-center justify-center h-full text-sm"
             style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink-light)" }}
           >
             No nodes to display. Try a different filter.
           </div>
-        )}
+        ) : null}
+
+        <MapLegend />
       </div>
 
       {/* Side panel */}
@@ -416,8 +438,6 @@ export default function MapTab() {
           onClose={() => setSelectedNode(null)}
         />
       )}
-
-      <MapLegend />
     </div>
   );
 }

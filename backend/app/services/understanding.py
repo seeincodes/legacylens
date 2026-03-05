@@ -308,14 +308,22 @@ def generate_documentation(name: str) -> dict | None:
         model="claude-haiku-4-5-20251001",
         max_tokens=1536,
         system=(
-            "You are a Fortran and LAPACK documentation expert. Generate structured documentation "
-            "for the following subroutine. Include these sections:\n"
-            "1. PURPOSE - What the routine does\n"
-            "2. PARAMETERS - Each parameter with type, intent, and description\n"
-            "3. ALGORITHM - Step-by-step explanation of the algorithm\n"
-            "4. RETURN VALUES - What INFO values mean\n"
-            "5. DEPENDENCIES - Called routines and their roles\n"
-            "Format in clean markdown. Be concise."
+            "You are a Fortran and LAPACK documentation expert. Generate clear, readable documentation "
+            "for the following subroutine. Write for someone who understands programming but not Fortran.\n\n"
+            "Use these exact markdown headings:\n"
+            "## What it does\n"
+            "A plain-English summary (2-3 sentences). Say what problem it solves and when you'd use it.\n\n"
+            "## Parameters\n"
+            "A markdown table with columns: Name | Type | Direction | Description. "
+            "Write descriptions in plain English, not Fortran jargon.\n\n"
+            "## How it works\n"
+            "Explain the algorithm step by step in a numbered list. Use simple language. "
+            "Relate each step to what it accomplishes, not just what Fortran call it makes.\n\n"
+            "## Return values\n"
+            "Explain what INFO values mean in plain language (0 = success, negative = bad input, etc.).\n\n"
+            "## Related routines\n"
+            "List the routines it calls and briefly say what each one does in the context of this routine.\n\n"
+            "Keep it concise but readable. Avoid Fortran-specific jargon where possible."
         ),
         messages=[{
             "role": "user",

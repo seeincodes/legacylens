@@ -110,7 +110,8 @@ function isBlockStart(line: string): boolean {
     /^#{1,4}\s+/.test(trimmed) ||
     /^[-*]\s+/.test(trimmed) ||
     /^\d+\.\s+/.test(trimmed) ||
-    /^>\s+/.test(trimmed)
+    /^>\s+/.test(trimmed) ||
+    /^\|.+\|/.test(trimmed)
   );
 }
 
@@ -192,6 +193,77 @@ function renderMarkdown(markdown: string): ReactNode[] {
       }
       elements.push(
         <blockquote key={`q-${i}`}>{renderInline(quoteLines.join(" "), `q-${i}`)}</blockquote>
+      );
+      continue;
+    }
+
+    // Markdown tables
+    if (/^\|.+\|/.test(trimmed)) {
+      const tableRows: string[] = [];
+      while (i < lines.length && /^\|.+\|/.test(lines[i].trim())) {
+        tableRows.push(lines[i].trim());
+        i += 1;
+      }
+      // Parse header, separator, and body rows
+      const parseRow = (row: string) =>
+        row.split("|").slice(1, -1).map((c) => c.trim());
+      const header = tableRows.length > 0 ? parseRow(tableRows[0]) : [];
+      const isSeparator = (row: string) => /^\|[\s:-]+\|/.test(row);
+      const bodyStart = tableRows.length > 1 && isSeparator(tableRows[1]) ? 2 : 1;
+      const bodyRows = tableRows.slice(bodyStart).filter((r) => !isSeparator(r));
+
+      elements.push(
+        <div key={`tbl-${i}`} className="overflow-x-auto my-2">
+          <table
+            className="w-full text-xs border-collapse"
+            style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+          >
+            {header.length > 0 && (
+              <thead>
+                <tr>
+                  {header.map((h, ci) => (
+                    <th
+                      key={ci}
+                      className="text-left px-3 py-2 font-bold"
+                      style={{
+                        borderBottom: "2px solid var(--paper-grid)",
+                        color: "var(--ink)",
+                        fontFamily: "var(--font-architects-daughter)",
+                        fontSize: "0.8rem",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {bodyRows.map((row, ri) => {
+                const cells = parseRow(row);
+                return (
+                  <tr key={ri}>
+                    {cells.map((cell, ci) => (
+                      <td
+                        key={ci}
+                        className="px-3 py-1.5"
+                        style={{
+                          borderBottom: "1px dashed var(--paper-grid)",
+                          color: ci === 0 ? "var(--chalk-purple)" : "var(--ink)",
+                          fontFamily: ci === 0 ? "var(--font-jetbrains-mono)" : "var(--font-crimson-pro)",
+                          fontSize: ci === 0 ? "0.75rem" : "0.85rem",
+                          fontWeight: ci === 0 ? 600 : 400,
+                        }}
+                      >
+                        {renderInline(cell, `tbl-${i}-${ri}-${ci}`)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       );
       continue;
     }
@@ -326,7 +398,7 @@ function DependencyView({ data }: { data: DependencyData }) {
 
 function SimilarView({ data }: { data: SimilarData }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {data.similar.map((s, i) => {
         const typeStyle = TYPE_STYLES[s.routine_type || ""] || { color: "var(--ink-light)", bg: "var(--paper-dark)" };
         const scorePercent = Math.min(s.relevance_score * 100, 100);
@@ -334,38 +406,65 @@ function SimilarView({ data }: { data: SimilarData }) {
           : scorePercent > 40 ? "var(--chalk-amber)" : "var(--chalk-pink)";
 
         return (
-          <div key={i} className="flex items-start gap-3 py-2"
-            style={{ borderBottom: i < data.similar.length - 1 ? "1px dashed var(--paper-grid)" : "none" }}>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold"
-                  style={{ fontFamily: "var(--font-architects-daughter)", color: "var(--ink)" }}>
+          <div
+            key={i}
+            className="rounded-lg p-3"
+            style={{
+              border: "1px solid var(--paper-grid)",
+              background: "var(--paper)",
+            }}
+          >
+            {/* Header row: name, type badge, score */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className="text-base font-bold truncate"
+                  style={{ fontFamily: "var(--font-architects-daughter)", color: "var(--ink)" }}
+                >
                   {s.subroutine_name || "Unknown"}
                 </span>
                 {s.routine_type && (
-                  <span className="math-tag"
-                    style={{ color: typeStyle.color, background: typeStyle.bg, border: `1px solid ${typeStyle.color}` }}>
+                  <span
+                    className="math-tag shrink-0"
+                    style={{ color: typeStyle.color, background: typeStyle.bg, border: `1px solid ${typeStyle.color}` }}
+                  >
                     {s.routine_type}
                   </span>
                 )}
-                <span className="text-xs"
-                  style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink-faint)" }}>
-                  {s.file_path}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="w-16 h-2 rounded-full overflow-hidden" style={{ background: "var(--paper-dark)" }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${scorePercent}%`, background: scoreColor }} />
+                </div>
+                <span
+                  className="text-xs font-bold min-w-[2.5rem] text-right"
+                  style={{ fontFamily: "var(--font-jetbrains-mono)", color: scoreColor }}
+                >
+                  {scorePercent.toFixed(0)}%
                 </span>
               </div>
-              <p className="text-xs mt-1 line-clamp-2"
-                style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink-light)" }}>
+            </div>
+            {/* File path */}
+            <div
+              className="text-xs mb-1.5"
+              style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink-faint)" }}
+            >
+              {s.file_path}
+            </div>
+            {/* Code preview */}
+            {s.content_preview && (
+              <div
+                className="text-xs leading-relaxed line-clamp-3 rounded px-2.5 py-2"
+                style={{
+                  fontFamily: "var(--font-jetbrains-mono)",
+                  color: "var(--ink-light)",
+                  background: "var(--paper-dark)",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
                 {s.content_preview}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <div className="w-12 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--paper-dark)" }}>
-                <div className="h-full rounded-full" style={{ width: `${scorePercent}%`, background: scoreColor }} />
               </div>
-              <span className="text-xs" style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink-faint)" }}>
-                {scorePercent.toFixed(0)}%
-              </span>
-            </div>
+            )}
           </div>
         );
       })}
@@ -397,15 +496,105 @@ function ELI5View({ data }: { data: ExplainData }) {
 }
 
 function DocumentView({ data }: { data: DocumentData }) {
+  // Split documentation into sections by ## headings for card-based layout
+  const sections = splitIntoSections(data.documentation);
+
+  if (sections.length === 0) {
+    return (
+      <div className="answer-markdown text-sm leading-relaxed"
+        style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink)" }}>
+        {renderMarkdown(data.documentation)}
+      </div>
+    );
+  }
+
+  const SECTION_ICONS: Record<string, string> = {
+    "what it does": "\u2139\uFE0F",
+    "parameters": "\u2699\uFE0F",
+    "how it works": "\u{1F527}",
+    "return values": "\u21A9\uFE0F",
+    "related routines": "\u{1F517}",
+  };
+
   return (
-    <div className="answer-markdown text-sm leading-relaxed"
-      style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink)" }}>
-      {renderMarkdown(data.documentation)}
+    <div className="space-y-3">
+      {sections.map((section, idx) => {
+        const icon = SECTION_ICONS[section.title.toLowerCase()] || "";
+        return (
+          <div
+            key={idx}
+            className="rounded-lg overflow-hidden"
+            style={{
+              border: "1px solid var(--paper-grid)",
+              background: "var(--paper)",
+            }}
+          >
+            <div
+              className="px-4 py-2"
+              style={{
+                background: "var(--paper-dark)",
+                borderBottom: "1px dashed var(--paper-grid)",
+              }}
+            >
+              <h3
+                className="text-sm font-bold"
+                style={{
+                  fontFamily: "var(--font-architects-daughter)",
+                  color: "var(--ink)",
+                }}
+              >
+                {icon} {section.title}
+              </h3>
+            </div>
+            <div
+              className="px-4 py-3 answer-markdown text-sm leading-relaxed"
+              style={{ fontFamily: "var(--font-crimson-pro)", color: "var(--ink)" }}
+            >
+              {renderMarkdown(section.content)}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
+function splitIntoSections(markdown: string): { title: string; content: string }[] {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const sections: { title: string; content: string }[] = [];
+  let currentTitle = "";
+  let currentLines: string[] = [];
+
+  for (const line of lines) {
+    const match = line.trim().match(/^##\s+(.+)$/);
+    if (match) {
+      if (currentTitle && currentLines.length > 0) {
+        sections.push({ title: currentTitle, content: currentLines.join("\n").trim() });
+      }
+      currentTitle = match[1];
+      currentLines = [];
+    } else if (currentTitle) {
+      currentLines.push(line);
+    }
+  }
+  if (currentTitle && currentLines.length > 0) {
+    sections.push({ title: currentTitle, content: currentLines.join("\n").trim() });
+  }
+
+  return sections;
+}
+
 function TranslateView({ data }: { data: TranslateData }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (data.code) {
+      navigator.clipboard.writeText(data.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="space-y-3">
       {data.explanation && (
@@ -414,9 +603,48 @@ function TranslateView({ data }: { data: TranslateData }) {
         </div>
       )}
       {data.code && (
-        <div className="answer-codeblock">
-          <div className="answer-code-lang">python</div>
-          <pre><code>{data.code}</code></pre>
+        <div
+          className="rounded-lg overflow-hidden"
+          style={{ border: "1px solid var(--paper-grid)" }}
+        >
+          <div
+            className="flex items-center justify-between px-3 py-1.5"
+            style={{
+              background: "var(--paper-dark)",
+              borderBottom: "1px solid var(--paper-grid)",
+            }}
+          >
+            <span
+              className="text-xs font-bold"
+              style={{ fontFamily: "var(--font-architects-daughter)", color: "var(--ink-light)" }}
+            >
+              Python equivalent
+            </span>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="text-xs px-2 py-0.5 rounded transition-colors"
+              style={{
+                fontFamily: "var(--font-jetbrains-mono)",
+                color: copied ? "var(--chalk-green)" : "var(--ink-faint)",
+                background: copied ? "var(--chalk-green-light)" : "transparent",
+                border: `1px solid ${copied ? "var(--chalk-green)" : "var(--paper-grid)"}`,
+              }}
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <pre
+            className="px-4 py-3 overflow-x-auto text-xs leading-relaxed"
+            style={{
+              fontFamily: "var(--font-jetbrains-mono)",
+              color: "var(--ink)",
+              background: "var(--paper)",
+              margin: 0,
+            }}
+          >
+            <code>{data.code}</code>
+          </pre>
         </div>
       )}
     </div>
