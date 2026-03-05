@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -141,9 +142,9 @@ export default function StatsTab() {
           <div className="space-y-2">
             {stats.largest_routines.map((r) => (
               <div key={r.subroutine_name} className="flex items-center gap-3">
-                <span className="w-20 text-xs font-medium" style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink)" }}>
+                <Link href={`/?q=${encodeURIComponent(r.subroutine_name)}`} className="w-20 text-xs font-medium hover:underline" style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--chalk-blue)" }}>
                   {r.subroutine_name}
-                </span>
+                </Link>
                 <div className="flex-1 h-4 rounded overflow-hidden" style={{ background: "var(--paper-dark)" }}>
                   <div className="h-full rounded" style={{ width: `${(r.lines / maxLines) * 100}%`, background: "var(--chalk-green)" }} />
                 </div>
@@ -163,9 +164,9 @@ export default function StatsTab() {
           <div className="space-y-2">
             {stats.most_called.map((r) => (
               <div key={r.subroutine_name} className="flex items-center gap-3">
-                <span className="w-20 text-xs font-medium" style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink)" }}>
+                <Link href={`/?q=${encodeURIComponent(r.subroutine_name)}`} className="w-20 text-xs font-medium hover:underline" style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--chalk-blue)" }}>
                   {r.subroutine_name}
-                </span>
+                </Link>
                 <div className="flex-1 h-4 rounded overflow-hidden" style={{ background: "var(--paper-dark)" }}>
                   <div className="h-full rounded" style={{ width: `${(r.call_count / maxCalls) * 100}%`, background: "var(--chalk-amber)" }} />
                 </div>

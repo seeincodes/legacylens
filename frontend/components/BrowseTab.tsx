@@ -19,9 +19,6 @@ const TYPE_COLORS: Record<string, { color: string; bg: string }> = {
 
 const ACTIONS = [
   { action: "explain", label: "Explain", color: "var(--chalk-blue)", bg: "var(--chalk-blue-light)" },
-  { action: "translate", label: "Translate", color: "var(--chalk-green)", bg: "var(--chalk-green-light)" },
-  { action: "dependencies", label: "Deps", color: "var(--chalk-purple)", bg: "var(--chalk-purple-light)" },
-  { action: "similar", label: "Similar", color: "var(--chalk-amber)", bg: "var(--chalk-amber-light)" },
 ];
 
 export default function BrowseTab() {
@@ -135,12 +132,13 @@ export default function BrowseTab() {
                     key={r.id}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--paper-dark)] transition-colors"
                   >
-                    <span
-                      className="text-sm font-medium shrink-0"
-                      style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--ink)" }}
+                    <Link
+                      href={`/?q=${encodeURIComponent(r.id)}`}
+                      className="text-sm font-medium shrink-0 hover:underline"
+                      style={{ fontFamily: "var(--font-jetbrains-mono)", color: "var(--chalk-blue)" }}
                     >
                       {r.id}
-                    </span>
+                    </Link>
                     {r.routine_type && (
                       <span
                         className="math-tag shrink-0"

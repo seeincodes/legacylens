@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface QueryInputProps {
   onSubmit: (query: string) => void;
@@ -9,10 +9,15 @@ interface QueryInputProps {
   brief: boolean;
   onBriefChange: (enabled: boolean) => void;
   isLoading: boolean;
+  initialQuery?: string | null;
 }
 
-export default function QueryInput({ onSubmit, expand, onExpandChange, brief, onBriefChange, isLoading }: QueryInputProps) {
-  const [query, setQuery] = useState("");
+export default function QueryInput({ onSubmit, expand, onExpandChange, brief, onBriefChange, isLoading, initialQuery }: QueryInputProps) {
+  const [query, setQuery] = useState(initialQuery || "");
+
+  useEffect(() => {
+    if (initialQuery) setQuery(initialQuery);
+  }, [initialQuery]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

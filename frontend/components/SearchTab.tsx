@@ -23,9 +23,10 @@ interface Chunk {
 interface SearchTabProps {
   linkedRoutine?: string | null;
   linkedAction?: string | null;
+  initialQuery?: string | null;
 }
 
-export default function SearchTab({ linkedRoutine, linkedAction }: SearchTabProps) {
+export default function SearchTab({ linkedRoutine, linkedAction, initialQuery }: SearchTabProps) {
   const [answer, setAnswer] = useState("");
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,10 +40,10 @@ export default function SearchTab({ linkedRoutine, linkedAction }: SearchTabProp
   const [precisionType, setPrecisionType] = useState("");
 
   useEffect(() => {
-    if (linkedRoutine && !hasSearched) {
+    if (linkedRoutine) {
       handleQuery(`What does ${linkedRoutine} do?`);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [linkedRoutine, linkedAction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQuery = async (query: string) => {
     setHasSearched(true);
@@ -126,7 +127,7 @@ export default function SearchTab({ linkedRoutine, linkedAction }: SearchTabProp
     <div className="w-full flex flex-col items-center px-4 gap-5">
       <div className="w-full max-w-3xl flex flex-col gap-5">
         <div className={`flex flex-col gap-5 transition-opacity duration-200 ${isLoading ? "opacity-50 pointer-events-none" : ""}`}>
-          <QueryInput onSubmit={handleQuery} isLoading={isLoading} expand={expandSearch} onExpandChange={setExpandSearch} brief={briefMode} onBriefChange={setBriefMode} />
+          <QueryInput onSubmit={handleQuery} isLoading={isLoading} expand={expandSearch} onExpandChange={setExpandSearch} brief={briefMode} onBriefChange={setBriefMode} initialQuery={initialQuery} />
           <SearchFilters routineType={routineType} precisionType={precisionType} onRoutineTypeChange={setRoutineType} onPrecisionTypeChange={setPrecisionType} disabled={isLoading} />
         </div>
         <AnswerPanel answer={answer} isStreaming={isStreaming} hasUnverified={hasUnverified} />

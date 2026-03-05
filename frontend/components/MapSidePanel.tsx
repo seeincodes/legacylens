@@ -20,9 +20,6 @@ const TYPE_BADGE_STYLES: Record<string, { color: string; bg: string; border: str
 
 const ACTION_BUTTONS = [
   { action: "explain", label: "Explain", color: "var(--chalk-blue)", bg: "var(--chalk-blue-light)" },
-  { action: "translate", label: "Translate", color: "var(--chalk-green)", bg: "var(--chalk-green-light)" },
-  { action: "dependencies", label: "Dependencies", color: "var(--chalk-purple)", bg: "var(--chalk-purple-light)" },
-  { action: "similar", label: "Similar", color: "var(--chalk-amber)", bg: "var(--chalk-amber-light)" },
 ];
 
 export default function MapSidePanel({

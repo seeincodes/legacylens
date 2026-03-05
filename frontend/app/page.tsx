@@ -14,6 +14,7 @@ function HomeContent() {
   const activeTab = (searchParams.get("tab") as TabId) || "search";
   const linkedRoutine = searchParams.get("routine");
   const linkedAction = searchParams.get("action");
+  const initialQuery = searchParams.get("q");
 
   const setActiveTab = useCallback((tab: TabId) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -51,7 +52,7 @@ function HomeContent() {
 
       {/* Tab Panels — all mounted, CSS visibility toggle */}
       <div className="flex-1 flex flex-col min-h-0" style={{ display: activeTab === "search" ? undefined : "none" }}>
-        <SearchTab linkedRoutine={linkedRoutine} linkedAction={linkedAction} />
+        <SearchTab linkedRoutine={linkedRoutine} linkedAction={linkedAction} initialQuery={initialQuery || (linkedRoutine ? `What does ${linkedRoutine} do?` : null)} />
       </div>
       <div className="flex-1 flex flex-col min-h-0" style={{ display: activeTab === "map" ? undefined : "none" }}>
         <MapTab />
