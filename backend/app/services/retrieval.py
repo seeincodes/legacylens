@@ -136,6 +136,8 @@ def reciprocal_rank_fusion(
         scores[rid] = scores.get(rid, 0) + keyword_weight / (k + rank + 1)
         if rid not in id_to_data:
             id_to_data[rid] = r
+        elif "vector_similarity" not in id_to_data[rid] and "vector_similarity" in r:
+            id_to_data[rid]["vector_similarity"] = r["vector_similarity"]
 
     sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
     return [{**id_to_data[rid], "rrf_score": scores[rid]} for rid in sorted_ids]
@@ -252,7 +254,8 @@ def vector_search(
     return [
         {"id": r[0], "file_path": r[1], "line_start": r[2], "line_end": r[3],
          "subroutine_name": r[4], "routine_type": r[5], "blas_level": r[6],
-         "content": r[7], "metadata": r[8], "score": float(r[9])}
+         "content": r[7], "metadata": r[8], "score": float(r[9]),
+         "vector_similarity": float(r[9])}
         for r in rows
     ]
 
@@ -591,6 +594,7 @@ def search(
     for r in merged[:top_k]:
         meta = r.get("metadata") or {}
         calls = meta.get("calls") if isinstance(meta, dict) else None
+        sim = r.get("vector_similarity", 0)
         results.append(
             ChunkResult(
                 file_path=r["file_path"], line_start=r["line_start"], line_end=r["line_end"],
@@ -598,9 +602,13 @@ def search(
                 blas_level=r.get("blas_level"),
                 content=r["content"], relevance_score=round(r.get("rrf_score", 0), 4),
                 relevance_label=r.get("relevance_label", "Medium"),
+                similarity_score=round(sim, 4),
                 calls=calls,
             )
         )
+
+    # Sort by code similarity (highest first)
+    results.sort(key=lambda c: c.similarity_score, reverse=True)
 
     _put_cached_response(cache_key, results)
     return results

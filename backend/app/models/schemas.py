@@ -22,6 +22,7 @@ class ChunkResult(BaseModel):
     content: str
     relevance_score: float
     relevance_label: str = "Medium"
+    similarity_score: float = 0.0
     calls: list[str] | None = None
 
 

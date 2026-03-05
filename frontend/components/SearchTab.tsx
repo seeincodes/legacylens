@@ -18,6 +18,7 @@ interface Chunk {
   content: string;
   relevance_score: number;
   relevance_label: string;
+  similarity_score: number;
 }
 
 interface SearchTabProps {

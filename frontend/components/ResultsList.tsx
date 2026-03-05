@@ -20,6 +20,7 @@ interface Chunk {
   content: string;
   relevance_score: number;
   relevance_label: string;
+  similarity_score: number;
 }
 
 interface ResultsListProps {
@@ -67,6 +68,9 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched, aut
   const [expandedChunks, setExpandedChunks] = useState<Record<string, boolean>>({});
   const [understandState, setUnderstandState] = useState<Record<string, UnderstandState>>({});
   const understandCache = useRef<Map<string, UnderstandResult>>(new Map());
+
+  // Sort by code similarity (highest first)
+  const sortedChunks = [...chunks].sort((a, b) => (b.similarity_score ?? 0) - (a.similarity_score ?? 0));
 
   const autoTriggered = useRef(false);
 
@@ -129,10 +133,10 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched, aut
   }, [understandState]);
 
   useEffect(() => {
-    if (!autoUnderstand || autoTriggered.current || chunks.length === 0 || isLoading) return;
+    if (!autoUnderstand || autoTriggered.current || sortedChunks.length === 0 || isLoading) return;
 
     const routineUpper = autoUnderstand.routine.toUpperCase();
-    const matchIdx = chunks.findIndex(
+    const matchIdx = sortedChunks.findIndex(
       (c) => c.subroutine_name?.toUpperCase() === routineUpper
     );
     if (matchIdx === -1) return;
@@ -141,8 +145,8 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched, aut
     if (!ENDPOINT_MAP[feature]) return;
 
     autoTriggered.current = true;
-    const chunkKey = `${chunks[matchIdx].file_path}:${chunks[matchIdx].line_start}-${chunks[matchIdx].line_end}:${matchIdx}`;
-    const subroutineName = chunks[matchIdx].subroutine_name!;
+    const chunkKey = `${sortedChunks[matchIdx].file_path}:${sortedChunks[matchIdx].line_start}-${sortedChunks[matchIdx].line_end}:${matchIdx}`;
+    const subroutineName = sortedChunks[matchIdx].subroutine_name!;
     handleUnderstand(chunkKey, subroutineName, feature);
   }, [chunks, isLoading, autoUnderstand, handleUnderstand]);
 
@@ -221,7 +225,7 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched, aut
         </div>
       )}
 
-      {chunks.map((chunk, i) => {
+      {sortedChunks.map((chunk, i) => {
         const chunkKey = `${chunk.file_path}:${chunk.line_start}-${chunk.line_end}:${i}`;
         const isExpanded = !!expandedChunks[chunkKey];
         const typeStyle = TYPE_STYLES[chunk.routine_type || ""] || {
@@ -298,54 +302,49 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched, aut
                 )}
               </div>
 
-              {/* Relevance score with label + per-card toggle */}
+              {/* Code similarity score + per-card toggle */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full"
-                  style={{
-                    fontFamily: "var(--font-jetbrains-mono)",
-                    color:
-                      chunk.relevance_label === "High"
-                        ? "var(--chalk-green)"
-                        : chunk.relevance_label === "Medium"
-                          ? "var(--chalk-amber)"
-                          : "var(--chalk-pink)",
-                    background:
-                      chunk.relevance_label === "High"
-                        ? "var(--chalk-green-light)"
-                        : chunk.relevance_label === "Medium"
-                          ? "var(--chalk-amber-light)"
-                          : "var(--chalk-pink-light)",
-                  }}
-                >
-                  {chunk.relevance_label}
-                </span>
-                <div
-                  className="w-16 h-1.5 rounded-full overflow-hidden"
-                  style={{ background: "var(--paper-dark)" }}
-                >
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${Math.min(chunk.relevance_score * 100, 100)}%`,
-                      background:
-                        chunk.relevance_score > 0.7
-                          ? "var(--chalk-green)"
-                          : chunk.relevance_score > 0.4
-                            ? "var(--chalk-amber)"
-                            : "var(--chalk-pink)",
-                    }}
-                  />
-                </div>
-                <span
-                  className="text-xs"
-                  style={{
-                    fontFamily: "var(--font-jetbrains-mono)",
-                    color: "var(--ink-faint)",
-                  }}
-                >
-                  {(chunk.relevance_score * 100).toFixed(0)}%
-                </span>
+                {(() => {
+                  const sim = chunk.similarity_score ?? 0;
+                  const simLabel = sim > 0.5 ? "High" : sim > 0.3 ? "Medium" : "Low";
+                  const simColor = sim > 0.5 ? "var(--chalk-green)" : sim > 0.3 ? "var(--chalk-amber)" : "var(--chalk-pink)";
+                  const simBg = sim > 0.5 ? "var(--chalk-green-light)" : sim > 0.3 ? "var(--chalk-amber-light)" : "var(--chalk-pink-light)";
+                  return (
+                    <>
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full"
+                        style={{
+                          fontFamily: "var(--font-jetbrains-mono)",
+                          color: simColor,
+                          background: simBg,
+                        }}
+                      >
+                        {simLabel}
+                      </span>
+                      <div
+                        className="w-16 h-1.5 rounded-full overflow-hidden"
+                        style={{ background: "var(--paper-dark)" }}
+                      >
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.min(sim * 100, 100)}%`,
+                            background: simColor,
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="text-xs"
+                        style={{
+                          fontFamily: "var(--font-jetbrains-mono)",
+                          color: "var(--ink-faint)",
+                        }}
+                      >
+                        {(sim * 100).toFixed(0)}%
+                      </span>
+                    </>
+                  );
+                })()}
                 <button
                   type="button"
                   onClick={() =>
