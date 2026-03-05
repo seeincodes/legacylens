@@ -70,16 +70,28 @@ export default function StatsPage() {
     <main className="min-h-screen flex flex-col items-center px-4 py-12">
       <div className="w-full max-w-2xl flex flex-col gap-8">
         <div className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-sm"
-            style={{
-              fontFamily: "var(--font-architects-daughter)",
-              color: "var(--chalk-blue)",
-            }}
-          >
-            ← Search
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              href="/"
+              className="text-sm"
+              style={{
+                fontFamily: "var(--font-architects-daughter)",
+                color: "var(--chalk-blue)",
+              }}
+            >
+              ← Search
+            </Link>
+            <Link
+              href="/map"
+              className="text-sm"
+              style={{
+                fontFamily: "var(--font-architects-daughter)",
+                color: "var(--chalk-purple)",
+              }}
+            >
+              Map
+            </Link>
+          </div>
           <div className="text-center">
             <h1
               className="text-3xl"

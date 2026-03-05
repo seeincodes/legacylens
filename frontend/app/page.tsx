@@ -138,9 +138,24 @@ export default function Home() {
           Explore the LAPACK Fortran codebase with natural language
         </p>
         </div>
-        <Link
-          href="/stats"
-          className="flex-1 text-right inline-flex items-center justify-end gap-2 px-4 py-2 rounded-2xl font-bold text-sm"
+        <div className="flex-1 flex justify-end gap-2">
+          <Link
+            href="/map"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl font-bold text-sm"
+            style={{
+              fontFamily: "var(--font-architects-daughter)",
+              color: "var(--chalk-purple)",
+              background: "var(--chalk-purple-light)",
+              border: "2px dashed var(--chalk-purple)",
+              boxShadow: "1px 1px 0 rgba(123,94,167,0.2)",
+            }}
+          >
+            <span style={{ fontSize: "1.1em" }}>🗺️</span>
+            Map
+          </Link>
+          <Link
+            href="/stats"
+            className="inline-flex items-center justify-end gap-2 px-4 py-2 rounded-2xl font-bold text-sm"
           style={{
             fontFamily: "var(--font-architects-daughter)",
             color: "var(--chalk-blue)",
@@ -152,6 +167,7 @@ export default function Home() {
           <span style={{ fontSize: "1.1em" }}>📊</span>
           Stats
         </Link>
+        </div>
       </div>
 
       {/* Query + Results */}

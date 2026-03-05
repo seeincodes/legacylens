@@ -4,7 +4,7 @@ RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natura
 
 ## Live Demo
 
-- **Frontend:** [frontend-nine-alpha-70.vercel.app](https://lapacklegacy-seeincodes.vercel.app/)
+- **Frontend:** [https://lapacklegacy-seeincodes.vercel.app/](https://lapacklegacy-seeincodes.vercel.app/)
 - **Backend API:** [legacylens-api.fly.dev](https://legacylens-api.fly.dev)
 
 ## Features
