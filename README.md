@@ -7,15 +7,51 @@ RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natura
 - **Frontend:** [https://lapacklegacy-seeincodes.vercel.app/](https://lapacklegacy-seeincodes.vercel.app/)
 - **Backend API:** [legacylens-api.fly.dev](https://legacylens-api.fly.dev)
 
+## Documentation
+
+- [RAG Architecture](docs/RAG_ARCHITECTURE.md) — System design, retrieval pipeline, technology choices
+- [AI Cost Analysis](docs/AI_COST_ANALYSIS.md) — Development spend, per-query costs, production projections
+- [Failure Modes](docs/FAILURE_MODES.md) — Known edge cases and retrieval failure analysis
+- [Tech Stack](TECH_STACK.md) — Detailed technology decisions and schema
+- [PRD](PRD.md) — Product requirements and scope
+
 ## Features
 
 - **Hybrid Search** — Vector similarity (pgvector HNSW) + full-text keyword search (PostgreSQL tsvector) fused with Reciprocal Rank Fusion, returning normalized 0–1 relevance scores
+- **LLM Reranking** — Claude Haiku reranks top-15 candidates by relevance (enabled by default), with concept boosting and exact-match pinning
 - **Streaming Answers** — Claude Haiku generates explanations with inline `[SRC/file.f:line-line]` citations streamed via Server-Sent Events
 - **Query Expansion** — Optional LLM-powered rephrasing into 2–3 query variants for higher recall
-- **Code Understanding** — Per-routine actions: Explain, ELI5, Dependency tracing (list + interactive graph), Similar routine search, Documentation generation, **Translate** (Python/NumPy equivalent), **Use cases** (when to use this routine)
+- **Code Understanding** — 7 per-routine actions: Explain, ELI5, Dependency tracing (list + interactive graph), Similar routine search, Documentation generation, Translate (Python/NumPy equivalent), Use Cases (when to use this routine)
+- **Interactive Call Graph** — Force-directed graph visualization of routine call relationships, with node search, type filtering, and selection details
+- **Codebase Stats** — Summary cards showing total routines, files, LOC, breakdowns by type and precision, and top 10 largest/most-called routines
+- **Browse Directory** — Alphabetical directory of all routines with type filters, search, and per-routine action buttons
 - **Metadata Filtering** — Filter by routine type (BLAS, driver, computational), BLAS level (1: vector, 2: matrix-vector, 3: matrix-matrix), and precision (single, double, complex)
 - **Fortran Syntax Highlighting** — Custom tokenizer for Fortran keywords, strings, numbers, and comments
 - **Evaluation Suite** — 25-query ground truth benchmark measuring Precision@K, Recall@K, MRR, and per-query latency
+
+The frontend is organized into four tabs: **Search**, **Map** (call graph), **Stats**, and **Browse**. Deep linking via `?tab=` and `?routine=DGESV&action=explain` is supported.
+
+## Architecture & Cost
+
+LegacyLens uses a hybrid RAG pipeline: queries are embedded with OpenAI `text-embedding-3-small`, searched via pgvector (HNSW) + PostgreSQL full-text search, fused with Reciprocal Rank Fusion, reranked by Claude Haiku, and answered with streaming LLM generation citing specific `[file:line]` references.
+
+```
+User Query → Next.js (Vercel) → FastAPI (Fly.io) → OpenAI Embeddings
+                                       ↓                    ↓
+                                 Claude Haiku ← Supabase/pgvector
+                                 (rerank +      (hybrid search +
+                                  stream)        concept boost)
+```
+
+| Metric            | Value                  |
+| ----------------- | ---------------------- |
+| Codebase indexed  | 2,294 files / 977K LOC |
+| Ingestion cost    | ~$0.10 (one-time)      |
+| Per-query cost    | ~$0.006 (with rerank)  |
+| Retrieval latency | ~2–5s median           |
+| Total dev spend   | ~$3.13                 |
+
+Full details: [RAG Architecture](docs/RAG_ARCHITECTURE.md) | [AI Cost Analysis](docs/AI_COST_ANALYSIS.md)
 
 ## BLAS Coverage
 
@@ -28,17 +64,6 @@ LegacyLens indexes the complete Reference BLAS implementation (159 files) alongs
 | **Level 3** | Matrix-matrix | GEMM, TRSM, SYMM, SYRK      | ~25   |
 
 Filter by BLAS level in the UI when "BLAS" is selected as routine type.
-
-## Architecture
-
-```
-User Query → Next.js (Vercel) → FastAPI (Fly.io) → OpenAI Embeddings
-                                       ↓                    ↓
-                                 Claude Haiku ← Supabase/pgvector
-                                 (streaming)    (hybrid search)
-```
-
-See [docs/RAG_ARCHITECTURE.md](docs/RAG_ARCHITECTURE.md) for full details.
 
 ## Tech Stack
 
@@ -109,6 +134,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `POST` | `/api/query`                   | Streaming search + answer (SSE)          |
 | `POST` | `/api/query/sync`              | Non-streaming search + answer            |
 | `GET`  | `/api/file/{file_path}`        | Get full file content by path            |
+| `GET`  | `/api/graph`                   | Call graph data (nodes + links)          |
+| `GET`  | `/api/stats`                   | Codebase statistics and breakdowns       |
 | `POST` | `/api/understand/explain`      | Explain a subroutine                     |
 | `POST` | `/api/understand/eli5`         | ELI5 explanation (kid-friendly + emojis) |
 | `POST` | `/api/understand/dependencies` | Trace call dependency chains             |
@@ -151,12 +178,4 @@ Metrics: fact pass rate, citation validity, retrieval hit rate, full pass rate, 
 | Retrieval precision | ~65–69% Precision@5 (expand+rerank, target >70%)                        |
 | Codebase coverage   | 2,294 files / 977K LOC indexed                                          |
 | Answer citations    | Correct file paths and line ranges                                      |
-| Per-query cost      | ~$0.004–0.005                                                           |
-
-## Documentation
-
-- [RAG Architecture](docs/RAG_ARCHITECTURE.md) — System design, retrieval pipeline, technology choices
-- [AI Cost Analysis](docs/AI_COST_ANALYSIS.md) — Development spend, per-query costs, production projections
-- [Failure Modes](docs/FAILURE_MODES.md) — Known edge cases and retrieval failure analysis
-- [Tech Stack](TECH_STACK.md) — Detailed technology decisions and schema
-- [PRD](PRD.md) — Product requirements and scope
+| Per-query cost      | ~$0.006 (with rerank), ~$0.004 (without)                                |
