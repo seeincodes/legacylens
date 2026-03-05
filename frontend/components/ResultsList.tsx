@@ -27,6 +27,7 @@ interface ResultsListProps {
   isLoading: boolean;
   error: string;
   hasSearched: boolean;
+  autoUnderstand?: { routine: string; action: string };
 }
 
 const TYPE_STYLES: Record<string, { color: string; bg: string }> = {
@@ -62,10 +63,12 @@ interface UnderstandState {
   error: string;
 }
 
-export default function ResultsList({ chunks, isLoading, error, hasSearched }: ResultsListProps) {
+export default function ResultsList({ chunks, isLoading, error, hasSearched, autoUnderstand }: ResultsListProps) {
   const [expandedChunks, setExpandedChunks] = useState<Record<string, boolean>>({});
   const [understandState, setUnderstandState] = useState<Record<string, UnderstandState>>({});
   const understandCache = useRef<Map<string, UnderstandResult>>(new Map());
+
+  const autoTriggered = useRef(false);
 
   useEffect(() => {
     setExpandedChunks({});
@@ -124,6 +127,24 @@ export default function ResultsList({ chunks, isLoading, error, hasSearched }: R
       }));
     }
   }, [understandState]);
+
+  useEffect(() => {
+    if (!autoUnderstand || autoTriggered.current || chunks.length === 0 || isLoading) return;
+
+    const routineUpper = autoUnderstand.routine.toUpperCase();
+    const matchIdx = chunks.findIndex(
+      (c) => c.subroutine_name?.toUpperCase() === routineUpper
+    );
+    if (matchIdx === -1) return;
+
+    const feature = autoUnderstand.action as UnderstandFeature;
+    if (!ENDPOINT_MAP[feature]) return;
+
+    autoTriggered.current = true;
+    const chunkKey = `${chunks[matchIdx].file_path}:${chunks[matchIdx].line_start}-${chunks[matchIdx].line_end}:${matchIdx}`;
+    const subroutineName = chunks[matchIdx].subroutine_name!;
+    handleUnderstand(chunkKey, subroutineName, feature);
+  }, [chunks, isLoading, autoUnderstand, handleUnderstand]);
 
   if (!hasSearched && chunks.length === 0 && !isLoading && !error) return null;
 

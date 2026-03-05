@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import QueryInput from "@/components/QueryInput";
 import AnswerPanel from "@/components/AnswerPanel";
@@ -21,7 +22,11 @@ interface Chunk {
   relevance_label: string;
 }
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const linkedRoutine = searchParams.get("routine");
+  const linkedAction = searchParams.get("action");
+
   const [answer, setAnswer] = useState("");
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +38,12 @@ export default function Home() {
   const [hasUnverified, setHasUnverified] = useState(false);
   const [routineType, setRoutineType] = useState("");
   const [precisionType, setPrecisionType] = useState("");
+
+  useEffect(() => {
+    if (linkedRoutine && !hasSearched) {
+      handleQuery(`What does ${linkedRoutine} do?`);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQuery = async (query: string) => {
     setHasSearched(true);
@@ -198,6 +209,7 @@ export default function Home() {
             isLoading={isLoading}
             error={queryError}
             hasSearched={hasSearched}
+            autoUnderstand={linkedRoutine && linkedAction ? { routine: linkedRoutine, action: linkedAction } : undefined}
           />
         )}
       </div>
@@ -213,5 +225,13 @@ export default function Home() {
         LAPACK — Linear Algebra PACKage — Univ. of Tennessee, UC Berkeley, NAG Ltd.
       </footer>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
   );
 }
