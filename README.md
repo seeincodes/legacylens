@@ -4,7 +4,7 @@ RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natura
 
 ## Live Demo
 
-- **Frontend:** [frontend-nine-alpha-70.vercel.app](https://lapacklegacy-seeinplays-projects.vercel.app/)
+- **Frontend:** [frontend-nine-alpha-70.vercel.app](https://lapacklegacy-seeincodes.vercel.app/)
 - **Backend API:** [legacylens-api.fly.dev](https://legacylens-api.fly.dev)
 
 ## Features
@@ -21,11 +21,11 @@ RAG-powered search and understanding for the LAPACK Fortran codebase. Ask natura
 
 LegacyLens indexes the complete Reference BLAS implementation (159 files) alongside LAPACK core routines. BLAS routines are classified by level:
 
-| Level | Operations | Examples | Count |
-|-------|-----------|----------|-------|
-| **Level 1** | Vector-vector | AXPY, DOT, SCAL, NRM2, SWAP | ~50 |
-| **Level 2** | Matrix-vector | GEMV, TRSV, SYMV, GER | ~65 |
-| **Level 3** | Matrix-matrix | GEMM, TRSM, SYMM, SYRK | ~25 |
+| Level       | Operations    | Examples                    | Count |
+| ----------- | ------------- | --------------------------- | ----- |
+| **Level 1** | Vector-vector | AXPY, DOT, SCAL, NRM2, SWAP | ~50   |
+| **Level 2** | Matrix-vector | GEMV, TRSV, SYMV, GER       | ~65   |
+| **Level 3** | Matrix-matrix | GEMM, TRSM, SYMM, SYRK      | ~25   |
 
 Filter by BLAS level in the UI when "BLAS" is selected as routine type.
 
@@ -114,7 +114,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `POST` | `/api/understand/dependencies` | Trace call dependency chains             |
 | `POST` | `/api/understand/similar`      | Find similar routines by embedding       |
 | `POST` | `/api/understand/document`     | Generate structured documentation        |
-| `POST` | `/api/understand/translate`     | Generate Python/NumPy equivalent          |
+| `POST` | `/api/understand/translate`    | Generate Python/NumPy equivalent         |
 | `POST` | `/api/understand/use-cases`    | Get use case scenarios                   |
 | `GET`  | `/api/health`                  | Health check                             |
 
@@ -144,14 +144,14 @@ Metrics: fact pass rate, citation validity, retrieval hit rate, full pass rate, 
 
 ## Performance
 
-| Metric              | Result                                            |
-| ------------------- | ------------------------------------------------- |
+| Metric              | Result                                                                  |
+| ------------------- | ----------------------------------------------------------------------- |
 | Retrieval latency   | ~2–5s median (p95 ~6s with expand+rerank) — embedding + DB + LLM rerank |
-| Answer generation   | 5–30s streaming — depends on LLM response length  |
-| Retrieval precision | ~65–69% Precision@5 (expand+rerank, target >70%)  |
-| Codebase coverage   | 2,294 files / 977K LOC indexed                    |
-| Answer citations    | Correct file paths and line ranges                |
-| Per-query cost      | ~$0.004–0.005                                     |
+| Answer generation   | 5–30s streaming — depends on LLM response length                        |
+| Retrieval precision | ~65–69% Precision@5 (expand+rerank, target >70%)                        |
+| Codebase coverage   | 2,294 files / 977K LOC indexed                                          |
+| Answer citations    | Correct file paths and line ranges                                      |
+| Per-query cost      | ~$0.004–0.005                                                           |
 
 ## Documentation
 
