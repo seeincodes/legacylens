@@ -30,3 +30,15 @@ CREATE INDEX IF NOT EXISTS idx_chunks_routine_type ON code_chunks (routine_type)
 CREATE INDEX IF NOT EXISTS idx_chunks_subroutine ON code_chunks (subroutine_name);
 CREATE INDEX IF NOT EXISTS idx_chunks_file_path ON code_chunks (file_path);
 CREATE INDEX IF NOT EXISTS idx_chunks_blas_level ON code_chunks (blas_level);
+
+-- Cached LLM-generated explanations (explain, eli5, document, translate, use-cases)
+CREATE TABLE IF NOT EXISTS routine_explanations (
+    id BIGSERIAL PRIMARY KEY,
+    subroutine_name TEXT NOT NULL,
+    action TEXT NOT NULL,
+    result JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(subroutine_name, action)
+);
+CREATE INDEX IF NOT EXISTS idx_explanations_lookup
+    ON routine_explanations (UPPER(subroutine_name), action);

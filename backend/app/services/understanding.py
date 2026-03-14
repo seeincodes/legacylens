@@ -1,18 +1,25 @@
 import json
+import logging
 import re
 from collections import OrderedDict
 
 import anthropic
 import openai
 import psycopg2
+import psycopg2.extras
 from pgvector.psycopg2 import register_vector
 
 from app.config import settings
 
+logger = logging.getLogger("legacylens.understanding")
+
 # ---------------------------------------------------------------------------
-# In-memory LRU cache for understand results
-# Key: (routine_name_upper, action)  Value: response dict
+# Two-tier cache: in-memory LRU (fast) backed by DB (persistent).
+# LLM actions persisted: explain, eli5, document, translate, use-cases
+# DB-only actions (dependencies, similar) stay in-memory only.
 # ---------------------------------------------------------------------------
+_PERSISTED_ACTIONS = {"explain", "eli5", "document", "translate", "use-cases"}
+
 _understand_cache: OrderedDict[tuple[str, str], dict] = OrderedDict()
 _CACHE_MAX = 512
 
@@ -22,6 +29,30 @@ def _get_cached(name: str, action: str) -> dict | None:
     if key in _understand_cache:
         _understand_cache.move_to_end(key)
         return _understand_cache[key]
+
+    if action in _PERSISTED_ACTIONS:
+        try:
+            conn = _get_conn()
+            cur = conn.cursor()
+            cur.execute(
+                """SELECT result FROM routine_explanations
+                   WHERE UPPER(subroutine_name) = UPPER(%s) AND action = %s
+                   LIMIT 1""",
+                (name, action),
+            )
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row:
+                result = row[0] if isinstance(row[0], dict) else json.loads(row[0])
+                _understand_cache[key] = result
+                _understand_cache.move_to_end(key)
+                while len(_understand_cache) > _CACHE_MAX:
+                    _understand_cache.popitem(last=False)
+                return result
+        except Exception as exc:
+            logger.debug("DB cache read failed for %s/%s: %s", name, action, exc)
+
     return None
 
 
@@ -31,6 +62,23 @@ def _put_cached(name: str, action: str, result: dict) -> None:
     _understand_cache.move_to_end(key)
     while len(_understand_cache) > _CACHE_MAX:
         _understand_cache.popitem(last=False)
+
+    if action in _PERSISTED_ACTIONS:
+        try:
+            conn = _get_conn()
+            cur = conn.cursor()
+            cur.execute(
+                """INSERT INTO routine_explanations (subroutine_name, action, result)
+                   VALUES (UPPER(%s), %s, %s)
+                   ON CONFLICT (subroutine_name, action)
+                   DO UPDATE SET result = EXCLUDED.result, created_at = NOW()""",
+                (name, action, psycopg2.extras.Json(result)),
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as exc:
+            logger.debug("DB cache write failed for %s/%s: %s", name, action, exc)
 
 
 def _get_conn():

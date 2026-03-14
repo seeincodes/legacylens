@@ -48,12 +48,13 @@ def main():
     elapsed = time.time() - start
     print(f"Embedding complete in {elapsed:.1f}s")
 
-    print("Truncating existing chunks...")
+    print("Truncating existing chunks and cached explanations...")
     import psycopg2
     from app.config import settings
     conn = psycopg2.connect(settings.database_url)
     cur = conn.cursor()
     cur.execute("TRUNCATE code_chunks")
+    cur.execute("TRUNCATE routine_explanations")
     conn.commit()
     cur.close()
     conn.close()
