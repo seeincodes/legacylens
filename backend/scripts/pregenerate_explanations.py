@@ -33,7 +33,7 @@ ACTION_MAP = {
     "explain": explain_routine,
     "eli5": explain_routine_eli5,
     "document": generate_documentation,
-    "translate": translate_routine,
+    "translate": lambda name: translate_routine(name, target_language="python"),
     "use-cases": get_use_cases,
 }
 

@@ -27,6 +27,7 @@ class DocumentRequest(BaseModel):
 
 class TranslateRequest(BaseModel):
     subroutine_name: str
+    target_language: str = "python"
 
 
 class UseCasesRequest(BaseModel):
@@ -94,6 +95,7 @@ class DocumentResponse(BaseModel):
 
 class TranslateResponse(BaseModel):
     subroutine_name: str
+    target_language: str = "python"
     code: str
     explanation: str
     corrected_from: str | None = None

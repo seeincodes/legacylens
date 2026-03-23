@@ -20,6 +20,12 @@ logger = logging.getLogger("legacylens.understanding")
 # ---------------------------------------------------------------------------
 _PERSISTED_ACTIONS = {"explain", "eli5", "document", "translate", "use-cases"}
 
+
+def _is_persisted(action: str) -> bool:
+    """Check if an action should be persisted to DB. Supports prefix matching for parameterized actions like translate:python."""
+    base = action.split(":")[0]
+    return base in _PERSISTED_ACTIONS
+
 _understand_cache: OrderedDict[tuple[str, str], dict] = OrderedDict()
 _CACHE_MAX = 512
 
@@ -30,7 +36,7 @@ def _get_cached(name: str, action: str) -> dict | None:
         _understand_cache.move_to_end(key)
         return _understand_cache[key]
 
-    if action in _PERSISTED_ACTIONS:
+    if _is_persisted(action):
         try:
             conn = _get_conn()
             cur = conn.cursor()
@@ -63,7 +69,7 @@ def _put_cached(name: str, action: str, result: dict) -> None:
     while len(_understand_cache) > _CACHE_MAX:
         _understand_cache.popitem(last=False)
 
-    if action in _PERSISTED_ACTIONS:
+    if _is_persisted(action):
         try:
             conn = _get_conn()
             cur = conn.cursor()
@@ -395,11 +401,92 @@ def generate_documentation(name: str) -> dict | None:
     return result
 
 
-def translate_routine(name: str) -> dict | None:
-    """Generate equivalent NumPy/SciPy code for a routine."""
-    cached = _get_cached(name, "translate")
+_TRANSLATE_LANGUAGES = {
+    "python": {
+        "label": "Python (NumPy/SciPy)",
+        "prompt": (
+            "You are a Fortran and NumPy/SciPy expert. Generate equivalent Python code for the LAPACK routine. "
+            "Include: (1) import statements (numpy, scipy.linalg), (2) example usage with sample data, "
+            "(3) brief explanation of the mapping (Fortran params → Python args). "
+            "Use code blocks with ```python. Be practical and runnable. Be concise."
+        ),
+        "fence": "python",
+    },
+    "c": {
+        "label": "C (LAPACKE)",
+        "prompt": (
+            "You are a Fortran and C expert. Generate equivalent C code using LAPACKE (the C interface to LAPACK). "
+            "Include: (1) #include statements, (2) example usage with sample data showing memory layout, "
+            "(3) brief explanation of the mapping (Fortran params → C args, column-major vs row-major). "
+            "Use code blocks with ```c. Be practical and compilable. Be concise."
+        ),
+        "fence": "c",
+    },
+    "cpp": {
+        "label": "C++ (Eigen)",
+        "prompt": (
+            "You are a Fortran and C++ expert. Generate equivalent C++ code using the Eigen library. "
+            "Include: (1) #include statements, (2) example usage with sample data, "
+            "(3) brief explanation of the mapping (Fortran params → Eigen API). "
+            "Use code blocks with ```cpp. Be practical and compilable. Be concise."
+        ),
+        "fence": "cpp",
+    },
+    "rust": {
+        "label": "Rust (nalgebra/ndarray)",
+        "prompt": (
+            "You are a Fortran and Rust expert. Generate equivalent Rust code using nalgebra or ndarray-linalg. "
+            "Include: (1) use/extern crate statements, (2) example usage with sample data, "
+            "(3) brief explanation of the mapping (Fortran params → Rust types). "
+            "Use code blocks with ```rust. Be practical and compilable. Be concise."
+        ),
+        "fence": "rust",
+    },
+    "julia": {
+        "label": "Julia (LinearAlgebra)",
+        "prompt": (
+            "You are a Fortran and Julia expert. Generate equivalent Julia code using LinearAlgebra. "
+            "Include: (1) using statements, (2) example usage with sample data, "
+            "(3) brief explanation of the mapping (Fortran params → Julia args). "
+            "Use code blocks with ```julia. Be practical and runnable. Be concise."
+        ),
+        "fence": "julia",
+    },
+    "matlab": {
+        "label": "MATLAB",
+        "prompt": (
+            "You are a Fortran and MATLAB expert. Generate equivalent MATLAB code. "
+            "Include: (1) example usage with sample data, "
+            "(2) brief explanation of the mapping (Fortran params → MATLAB args). "
+            "Use code blocks with ```matlab. Be practical and runnable. Be concise."
+        ),
+        "fence": "matlab",
+    },
+    "r": {
+        "label": "R",
+        "prompt": (
+            "You are a Fortran and R expert. Generate equivalent R code. "
+            "Include: (1) library() statements if needed, (2) example usage with sample data, "
+            "(3) brief explanation of the mapping (Fortran params → R args). "
+            "Use code blocks with ```r. Be practical and runnable. Be concise."
+        ),
+        "fence": "r",
+    },
+}
+
+
+def translate_routine(name: str, target_language: str = "python") -> dict | None:
+    """Generate equivalent code in the target language for a routine."""
+    lang_key = target_language.lower()
+    if lang_key not in _TRANSLATE_LANGUAGES:
+        lang_key = "python"
+
+    cache_action = f"translate:{lang_key}"
+    cached = _get_cached(name, cache_action)
     if cached:
         return cached
+
+    lang = _TRANSLATE_LANGUAGES[lang_key]
 
     routine = lookup_routine(name, include_embedding=False)
     if not routine:
@@ -410,12 +497,7 @@ def translate_routine(name: str) -> dict | None:
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1536,
-        system=(
-            "You are a Fortran and NumPy/SciPy expert. Generate equivalent Python code for the LAPACK routine. "
-            "Include: (1) import statements (numpy, scipy.linalg), (2) example usage with sample data, "
-            "(3) brief explanation of the mapping (Fortran params → Python args). "
-            "Use code blocks with ```python. Be practical and runnable. Be concise."
-        ),
+        system=lang["prompt"],
         messages=[{
             "role": "user",
             "content": (
@@ -429,17 +511,21 @@ def translate_routine(name: str) -> dict | None:
     )
 
     text = message.content[0].text
-    code_match = re.search(r"```python\n(.*?)```", text, re.DOTALL)
+    fence = lang["fence"]
+    code_match = re.search(rf"```{fence}\n(.*?)```", text, re.DOTALL)
+    if not code_match:
+        code_match = re.search(r"```\w*\n(.*?)```", text, re.DOTALL)
     code = code_match.group(1).strip() if code_match else ""
-    explanation = re.sub(r"```python\n.*?```", "", text, flags=re.DOTALL).strip() if code_match else text
+    explanation = re.sub(r"```\w*\n.*?```", "", text, flags=re.DOTALL).strip() if code_match else text
     result = {
         "subroutine_name": routine["subroutine_name"],
+        "target_language": lang_key,
         "code": code,
         "explanation": explanation or "See code below.",
     }
     if routine.get("corrected_from"):
         result["corrected_from"] = routine["corrected_from"]
-    _put_cached(name, "translate", result)
+    _put_cached(name, cache_action, result)
     return result
 
 

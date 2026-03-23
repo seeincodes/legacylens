@@ -69,8 +69,8 @@ async def document(request: DocumentRequest):
 
 @router.post("/translate", response_model=TranslateResponse)
 async def translate(request: TranslateRequest):
-    """Generate equivalent NumPy/SciPy code for a routine."""
-    result = translate_routine(request.subroutine_name)
+    """Generate equivalent code in a target language for a routine."""
+    result = translate_routine(request.subroutine_name, target_language=request.target_language)
     if not result:
         raise HTTPException(status_code=404, detail=f"Routine '{request.subroutine_name}' not found")
     return result
