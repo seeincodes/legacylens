@@ -18,7 +18,7 @@ logger = logging.getLogger("legacylens.understanding")
 # LLM actions persisted: explain, eli5, document, translate, use-cases
 # DB-only actions (dependencies, similar) stay in-memory only.
 # ---------------------------------------------------------------------------
-_PERSISTED_ACTIONS = {"explain", "eli5", "document", "translate", "use-cases"}
+_PERSISTED_ACTIONS = {"explain", "eli5", "document", "translate", "use-cases", "dependencies", "similar"}
 
 
 def _is_persisted(action: str) -> bool:
